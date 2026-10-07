@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid username or password.",
+      "cannot_connect": "Could not connect to the APsystems EMA portal.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Polling interval (seconds)",
+          "enable_generator_sensors": "Enable generator sensors (experimental, field meanings unconfirmed)"
+        }
+      }
+    },
+    "error": {
+      "scan_interval_too_low": "Polling interval must be at least 30 seconds."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "grid_power": { "name": "Grid Power" },
+      "load_power": { "name": "Load Power" },
+      "pv_power": { "name": "Solar Power" },
+      "storage_bat_power": { "name": "Battery Power" },
+      "storage_soc": { "name": "Battery State of Charge" },
+      "storage_status": { "name": "Battery Status Code" },
+      "storage_capacity": { "name": "Battery Capacity" },
+      "last_report_time": { "name": "Last Report Time" },
+      "pv_lifetime_energy": { "name": "Solar Production Lifetime" },
+      "consume_lifetime_energy": { "name": "Consumption Lifetime" },
+      "battery_discharge_today": { "name": "Battery Discharge Today" },
+      "battery_charge_today": { "name": "Battery Charge Today" },
+      "solar_production_today": { "name": "Solar Production Today" },
+      "local_consumption_today": { "name": "Local Consumption Today" },
+      "grid_export_today": { "name": "Grid Export Today" },
+      "grid_import_today": { "name": "Grid Import Today" },
+      "strategy_mode": { "name": "Battery Strategy Mode" },
+      "backup_reserve_soc": { "name": "Backup Reserve SOC" },
+      "peak_shaving_threshold": { "name": "Peak Shaving Threshold" },
+      "generator_power": { "name": "Generator Power" },
+      "generator_voltage": { "name": "Generator Voltage" },
+      "generator_frequency": { "name": "Generator Frequency" },
+      "generator_temperature": { "name": "Generator Temperature" },
+      "generator_status": { "name": "Generator Status Code" }
+    },
+    "binary_sensor": {
+      "running_status": { "name": "System Running" },
+      "communication_status": { "name": "System Communication OK" },
+      "eps_enabled": { "name": "EPS Enabled" },
+      "zero_export_enabled": { "name": "Zero Export Enabled" }
+    }
+  }
+}
