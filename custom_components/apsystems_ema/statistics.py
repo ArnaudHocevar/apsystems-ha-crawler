@@ -44,7 +44,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from homeassistant.components.recorder.models import (
@@ -137,7 +137,7 @@ async def _async_get_last_stat(
     stats = result.get(statistic_id)
     if not stats:
         return None
-    end_time = datetime.fromtimestamp(stats[0]["end"], tz=timezone.utc)
+    end_time = datetime.fromtimestamp(stats[0]["end"], tz=UTC)
     return end_time, float(stats[0]["sum"])
 
 
@@ -201,7 +201,7 @@ def _build_day_statistics(
     # order too (sorted() below is just a defensive guarantee, not load
     # bearing for correctness).
     hourly_deltas: dict[datetime, float] = {}
-    for ts_millis, value_str in zip(times, series):
+    for ts_millis, value_str in zip(times, series, strict=False):
         try:
             delta = float(value_str)
         except (TypeError, ValueError):
@@ -214,7 +214,7 @@ def _build_day_statistics(
         # bucket - we have observed the portal's own data be clean in
         # testing, but this costs nothing and catches it if it ever isn't.
         if abs(delta) > MAX_PLAUSIBLE_INTERVAL_KWH:
-            instant = datetime.fromtimestamp(ts_millis / 1000, tz=timezone.utc)
+            instant = datetime.fromtimestamp(ts_millis / 1000, tz=UTC)
             _LOGGER.warning(
                 "Dropping implausible %s interval delta %.3f kWh at %s "
                 "(exceeds %.1f kWh/5min sanity bound) - treating as 0 to "
@@ -225,7 +225,7 @@ def _build_day_statistics(
                 MAX_PLAUSIBLE_INTERVAL_KWH,
             )
             continue
-        instant = datetime.fromtimestamp(ts_millis / 1000, tz=timezone.utc)
+        instant = datetime.fromtimestamp(ts_millis / 1000, tz=UTC)
         hour_start = instant.replace(minute=0, second=0, microsecond=0)
         hourly_deltas[hour_start] = hourly_deltas.get(hour_start, 0.0) + delta
 
@@ -251,7 +251,8 @@ async def _async_backfill_dates(
     pace_seconds: float | None = None,
     force: bool = False,
 ) -> dict[str, int]:
-    """Walk ``start_date``..``end_date`` (inclusive) writing external statistics for all six DE keys.
+    """Walk ``start_date``..``end_date`` (inclusive) writing external statistics for all
+    six DE keys.
 
     Fetches getSystemPowerOnCurrentDayBatch exactly once per day (its
     response already contains every counter's per-interval series) and
@@ -308,13 +309,13 @@ async def _async_backfill_dates(
     # 5-minute interval, now a whole hour - every time backfill resumed).
     last_times = {k: (v[0] if v else None) for k, v in last_known_by_key.items()}
     if force:
-        range_start = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+        range_start = datetime.combine(start_date, datetime.min.time(), tzinfo=UTC)
         for de_key, last_known in last_known_by_key.items():
             if last_known is not None and last_known[0] >= range_start:
                 running_sums[de_key] = 0.0
                 last_times[de_key] = None
     metadata = {k: _metadata(entry_id, title, k) for k in DAILY_ENERGY_SENSORS}
-    days_written = {k: 0 for k in DAILY_ENERGY_SENSORS}
+    days_written = dict.fromkeys(DAILY_ENERGY_SENSORS, 0)
 
     day = start_date
     while day <= end_date:
@@ -356,7 +357,7 @@ async def async_backfill_statistics(
     ``async_backfill_date_range`` for the user-invokable equivalent over an
     arbitrary date range (the ``apsystems_ema.backfill`` service).
     """
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     last_known_by_key: dict[str, tuple[datetime, float] | None] = {}
     earliest_bound = today - timedelta(days=BACKFILL_MAX_DAYS - 1)
     start_date = today

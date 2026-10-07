@@ -94,7 +94,10 @@ def parse_control_info(raw: dict[str, Any]) -> dict[str, Any]:
     raw_time = raw.get("lastReportTime")
     if raw_time:
         try:
-            naive = datetime.strptime(raw_time, "%Y-%m-%d %H:%M:%S")
+            # Intentionally naive here: the portal gives no timezone of its own,
+            # so we attach HA's configured local tz explicitly below instead of
+            # assuming UTC/system tz at parse time.
+            naive = datetime.strptime(raw_time, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007
             # The portal returns a naive "yyyy-MM-dd HH:mm:ss" wall-clock
             # string with no timezone info of its own. We interpret it as
             # being in Home Assistant's configured local timezone (the best

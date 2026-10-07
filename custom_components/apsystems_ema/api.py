@@ -16,7 +16,6 @@ from typing import Any
 import aiohttp
 import yarl
 
-from .crypto import build_login_payload
 from .const import (
     BASE_URL,
     DASHBOARD_URL,
@@ -31,6 +30,7 @@ from .const import (
     INDEX_URL,
     LOGIN_URL,
 )
+from .crypto import build_login_payload
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -125,7 +125,10 @@ class ApsystemsEmaClient:
             fixed["JSESSIONID"]["path"] = "/ema"
             self._session.cookie_jar.update_cookies(fixed, response_url)
 
-        today = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # The portal expects the current *local* wall-clock time; .astimezone()
+        # with no argument attaches the system's local tz without changing the
+        # wall-clock value, which also satisfies linters that flag naive now().
+        today = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
         body, content_type = build_login_payload(self._username, self._password, today)
 
         try:

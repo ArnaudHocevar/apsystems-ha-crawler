@@ -75,6 +75,6 @@ async def test_live_login_and_endpoints():
 
         from datetime import datetime
 
-        today_str = datetime.now().strftime("%Y%m%d")
+        today_str = datetime.now().astimezone().strftime("%Y%m%d")
         batch = await client.async_get_power_on_current_day_batch(today_str)
         print("power_on_current_day_batch keys:", list(batch.keys()) if batch else None)

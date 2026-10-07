@@ -27,7 +27,6 @@ def test_aes_encrypt_hex_matches_pycryptodome_cross_check():
     """Fixed key/iv vector: our AES-CBC/zero-pad implementation must match
     an independent AES implementation (pycryptodome) byte for byte."""
     from Crypto.Cipher import AES as PyAES
-    from Crypto.Util.Padding import pad as py_pad
 
     key_str = "0123456789abcdef"
     iv_str = "0000000000000001"

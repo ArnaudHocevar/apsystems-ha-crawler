@@ -7,17 +7,17 @@ needed.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.components.recorder.statistics import valid_statistic_id
 
 from custom_components.apsystems_ema.const import DAILY_ENERGY_SENSORS
 from custom_components.apsystems_ema.statistics import (
     _statistic_id,
     async_backfill_date_range,
 )
-from homeassistant.components.recorder.statistics import valid_statistic_id
 
 
 def _make_batch(start_value: float, day_offset: int = 0) -> dict:
@@ -29,7 +29,7 @@ def _make_batch(start_value: float, day_offset: int = 0) -> dict:
     that batches for different calendar days don't collide when compared
     against a previous day's last-written timestamp.
     """
-    base_dt = datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc) + timedelta(
+    base_dt = datetime(2026, 1, 1, 10, 0, tzinfo=UTC) + timedelta(
         days=day_offset
     )
     base = int(base_dt.timestamp() * 1000)
@@ -118,7 +118,7 @@ async def test_backfill_date_range_continues_cumulative_sum_from_last_known():
     statistic_id = _statistic_id("entry123", "DE2")
     # Last known point covers the day's first hour (10:00-11:00 UTC); its
     # "end" (11:00) is exactly the start of the batch's second interval.
-    last_end = datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc)
+    last_end = datetime(2026, 1, 1, 11, 0, tzinfo=UTC)
 
     def fake_get_last_statistics(hass_arg, count, stat_id, convert, types):
         if stat_id == statistic_id:
@@ -170,7 +170,7 @@ async def test_build_day_statistics_aggregates_five_minute_intervals_into_hours(
     only accepts top-of-the-hour timestamps)."""
     from custom_components.apsystems_ema.statistics import _build_day_statistics
 
-    hour = datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)
+    hour = datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
     times = [
         int((hour + timedelta(minutes=5 * i)).timestamp() * 1000) for i in range(12)
     ]
@@ -265,7 +265,7 @@ async def test_todays_first_hour_does_not_inherit_previous_days_total():
     def ms(dt: datetime) -> int:
         return int(dt.timestamp() * 1000)
 
-    base_yesterday = datetime(2026, 10, 6, 0, 0, tzinfo=timezone.utc)
+    base_yesterday = datetime(2026, 10, 6, 0, 0, tzinfo=UTC)
     yesterday_time = [ms(base_yesterday + timedelta(minutes=5 * i)) for i in range(288)]
     charge_vals = ["0.0"] * 288
     charge_vals[100] = "9.5"
@@ -281,7 +281,7 @@ async def test_todays_first_hour_does_not_inherit_previous_days_total():
         "importedEnergy": ["0.0"] * 288,
     }
 
-    base_today = datetime(2026, 10, 7, 0, 0, tzinfo=timezone.utc)
+    base_today = datetime(2026, 10, 7, 0, 0, tzinfo=UTC)
     today_time = [ms(base_today + timedelta(minutes=5 * i)) for i in range(3)]
     today_batch = {
         "time": today_time,
@@ -324,7 +324,7 @@ async def test_todays_first_hour_does_not_inherit_previous_days_total():
         )
 
     de1_id = _statistic_id("entry123", "DE1")
-    today_midnight = datetime(2026, 10, 7, 0, 0, tzinfo=timezone.utc)
+    today_midnight = datetime(2026, 10, 7, 0, 0, tzinfo=UTC)
     todays_points = [p for p in written[de1_id] if p["start"] >= today_midnight]
     assert len(todays_points) == 1, "today's partial first hour should be a single point"
     assert todays_points[0]["state"] == pytest.approx(0.0)
@@ -341,7 +341,7 @@ async def test_build_day_statistics_drops_implausible_interval_delta():
     silently inject a huge spike into the Energy dashboard."""
     from custom_components.apsystems_ema.statistics import _build_day_statistics
 
-    hour = datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)
+    hour = datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
     times = [int((hour + timedelta(minutes=5 * i)).timestamp() * 1000) for i in range(3)]
     batch = {
         "time": times,
@@ -378,7 +378,7 @@ async def test_force_backfills_older_range_after_newer_data_already_written():
 
     # Simulate automatic backfill already having written a recent point
     # (e.g. from today), long after the older range being requested below.
-    recent_end = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+    recent_end = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
     def fake_get_last_statistics(hass_arg, count, stat_id, convert, types):
         return {stat_id: [{"end": recent_end.timestamp(), "sum": 50.0, "state": 1.0}]}
