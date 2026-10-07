@@ -1,0 +1,46 @@
+backfill:
+  name: Backfill energy history
+  description: >-
+    Manually backfill the six daily energy counters' external statistics
+    (hourly resolution) for a chosen date range, e.g. right after first
+    installing the integration (to cover history from before it was ever
+    active) or any time a gap is suspected. Does not require restarting
+    Home Assistant or waiting for the automatic startup gap-fill. Days
+    outside the EMA portal's retention window are skipped with a logged
+    warning rather than aborting the whole range.
+  fields:
+    config_entry_id:
+      name: Config entry
+      description: The APsystems EMA config entry (account/station) to backfill.
+      required: true
+      selector:
+        config_entry:
+          integration: apsystems_ema
+    start_date:
+      name: Start date
+      description: First day (inclusive) to backfill.
+      required: true
+      selector:
+        date: {}
+    end_date:
+      name: End date
+      description: Last day (inclusive) to backfill. Defaults to today if omitted.
+      required: false
+      selector:
+        date: {}
+    force:
+      name: Force overwrite
+      description: >-
+        Re-write statistic points even for days already covered by
+        previously-backfilled data, instead of only filling in new days.
+        Use this to fill in older history after a more recent backfill
+        already ran (normally skipped as a no-op), or to self-heal a
+        statistic point you suspect was written incorrectly by an older
+        version of this integration. Causes a one-time cumulative-total
+        discontinuity at the edge of the overwritten range; the hourly
+        energy values themselves (what the Energy dashboard bars show) are
+        unaffected. Defaults to off.
+      required: false
+      default: false
+      selector:
+        boolean: {}
