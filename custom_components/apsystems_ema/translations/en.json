@@ -4,7 +4,11 @@
       "user": {
         "data": {
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "base_url": "APsystems cloud portal URL"
+        },
+        "data_description": {
+          "base_url": "Base URL of the APsystems cloud portal, if not the default EMA portal (e.g. a region-specific or white-labelled deployment)."
         }
       }
     },

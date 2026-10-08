@@ -5,31 +5,29 @@ from datetime import timedelta
 
 DOMAIN = "apsystems_ema"
 
-BASE_URL = "https://apsystemsema.com/ema"
-INDEX_URL = f"{BASE_URL}/index.action"
-LOGIN_URL = f"{BASE_URL}/loginEMA.action"
-DASHBOARD_URL = f"{BASE_URL}/security/optmainmenu/intoHemsDashboard.action?language=en_US"
+CONF_BASE_URL = "base_url"
+# The stock EMA portal. Not a hard requirement - other APsystems cloud
+# deployments (e.g. region-specific or white-labelled portals that mirror
+# the same EMA dashboard API) can be configured instead via CONF_BASE_URL.
+DEFAULT_BASE_URL = "https://apsystemsema.com/ema"
 
-ENDPOINT_CONTROL_INFO = (
-    f"{BASE_URL}/ajax/getDashboardApiAjax/getControlInfoWithMenuStorageDataPart"
+# Paths below are relative to whatever base URL is configured (see
+# CONF_BASE_URL / DEFAULT_BASE_URL); ApsystemsEmaClient joins them per
+# instance rather than hard-coding a single portal host.
+PATH_INDEX = "index.action"
+PATH_LOGIN = "loginEMA.action"
+PATH_DASHBOARD = "security/optmainmenu/intoHemsDashboard.action?language=en_US"
+
+PATH_CONTROL_INFO = "ajax/getDashboardApiAjax/getControlInfoWithMenuStorageDataPart"
+PATH_STORAGE_SUMMARY = "ajax/getDashboardApiAjax/getStorageSummaryProductionInfoAjax"
+PATH_POWER_ON_CURRENT_DAY_BATCH = (
+    "ajax/getDashboardApiAjax/getSystemPowerOnCurrentDayBatch"
 )
-ENDPOINT_STORAGE_SUMMARY = (
-    f"{BASE_URL}/ajax/getDashboardApiAjax/getStorageSummaryProductionInfoAjax"
-)
-ENDPOINT_POWER_ON_CURRENT_DAY_BATCH = (
-    f"{BASE_URL}/ajax/getDashboardApiAjax/getSystemPowerOnCurrentDayBatch"
-)
-ENDPOINT_DASHBOARD_SUMMARY = (
-    f"{BASE_URL}/ajax/getDashboardApiAjax/getDashboardSummaryInfoAjax"
-)
-ENDPOINT_STRATEGY_INFO = (
-    f"{BASE_URL}/ajax/getDashboardApiAjax/getStrategyInfoWithMenu"
-)
-ENDPOINT_SYSTEM_STRATEGY = f"{BASE_URL}/ajax/getDashboardApiAjax/getSystemStrategy"
-ENDPOINT_GENERATOR_DATA = f"{BASE_URL}/ajax/getDashboardApiAjax/getGeneratorDataAjax"
-ENDPOINT_GENERATOR_REALTIME = (
-    f"{BASE_URL}/ajax/getDashboardApiAjax/getGeneratorRealTimeAjax"
-)
+PATH_DASHBOARD_SUMMARY = "ajax/getDashboardApiAjax/getDashboardSummaryInfoAjax"
+PATH_STRATEGY_INFO = "ajax/getDashboardApiAjax/getStrategyInfoWithMenu"
+PATH_SYSTEM_STRATEGY = "ajax/getDashboardApiAjax/getSystemStrategy"
+PATH_GENERATOR_DATA = "ajax/getDashboardApiAjax/getGeneratorDataAjax"
+PATH_GENERATOR_REALTIME = "ajax/getDashboardApiAjax/getGeneratorRealTimeAjax"
 
 CONF_SCAN_INTERVAL = "scan_interval"
 DEFAULT_SCAN_INTERVAL = 60
