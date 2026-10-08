@@ -1,0 +1,30 @@
+# Minimal ruff configuration for this HACS custom integration.
+#
+# We intentionally don't use Home Assistant core's own `select = ["ALL"]`
+# ruff config (see https://github.com/home-assistant/core/blob/dev/pyproject.toml
+# and the `integration_blueprint` template) since that ruleset additionally
+# demands things like full docstring coverage and exhaustive type annotations
+# across the whole codebase. Instead we select a practical subset covering
+# correctness, import hygiene, modernization and common HA-ecosystem
+# footguns (timezone-naive datetimes, etc.) without requiring an unrelated
+# repo-wide rewrite just to turn lint on.
+target-version = "py313"
+line-length = 100
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort (import sorting)
+    "UP",     # pyupgrade (modern syntax)
+    "B",      # flake8-bugbear (common bugs/footguns)
+    "SIM",    # flake8-simplify
+    "C4",     # flake8-comprehensions
+    "ASYNC",  # flake8-async (HA is an asyncio codebase)
+    "DTZ",    # flake8-datetimez (naive datetime footguns)
+    "RUF",    # ruff-specific rules
+]
+
+[lint.mccabe]
+max-complexity = 25

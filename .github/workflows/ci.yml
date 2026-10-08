@@ -1,0 +1,85 @@
+name: CI
+
+on: [pull_request]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hassfest:
+    name: Hassfest validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Run hassfest
+        uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+          # Several of HACS's "default store" checks (repository description,
+          # topics, issues enabled) are GitHub repository *settings*, not
+          # anything this codebase can satisfy on its own. They don't block a
+          # custom-repository-via-URL install (only default-store inclusion),
+          # so we ignore them here; everything else this repo can control
+          # (manifest, hacs.json, brand assets, license, README) is still
+          # fully validated. Once the repo exists on GitHub, set a
+          # description, add topics, and enable Issues to pass these too.
+          ignore: "description topics issues"
+
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff check
+        run: ruff check .
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.14 is Home Assistant's current minimum supported Python version
+        # (home-assistant/core requires-python >= 3.14.2 as of this writing).
+        # 3.13 is kept alongside it as a quick compatibility smoke-test since
+        # it's still common on existing HA installs mid-upgrade.
+        python-version: ["3.13", "3.14"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements_test.txt
+          pip install homeassistant
+
+      - name: Run tests
+        run: pytest tests/ -m "not integration"

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -59,7 +59,7 @@ class ApsystemsEmaCoordinator(DataUpdateCoordinator[EmaData]):
         return control_info_raw, storage_summary_raw, dashboard_summary_raw
 
     async def _async_maybe_fetch_strategy(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if (
             self._last_strategy_poll is not None
             and now - self._last_strategy_poll < SLOW_POLL_INTERVAL
@@ -74,7 +74,7 @@ class ApsystemsEmaCoordinator(DataUpdateCoordinator[EmaData]):
             return
         if not ecu_dev_id:
             return
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if (
             self._last_generator_poll is not None
             and now - self._last_generator_poll < SLOW_POLL_INTERVAL
