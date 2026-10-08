@@ -120,35 +120,41 @@ when the portal starts a new accumulation period. **This integration never
 adds these sensors to your Energy dashboard configuration for you** — add
 whichever ones you want yourself under **Settings → Dashboards → Energy**.
 
-#### Daily rollover guard
+#### Daily rollover diagnostics
 
-The portal's own day boundary is not guaranteed to be at Home Assistant's
-local midnight (e.g. the portal may roll over on a UTC day boundary while
-HA runs in CET), and it has occasionally been observed to report a
-transient, implausibly low value for one of these counters on a single
-poll before resuming at its previous level on the very next poll — not a
-genuine reset, just a backend hiccup. Passing either of these straight
-through to a plain `total_increasing` sensor would corrupt the Energy
-dashboard: a spurious dip followed by recovery gets recorded by HA's
-recorder as "meter reset, then a full day's growth again", severely
-skewing (effectively doubling) that day's totals.
+Home Assistant's `total_increasing` state class is designed to handle a
+counter decreasing: when a lower reading is seen, the recorder starts a
+fresh accumulation baseline from that point instead of treating it as a
+drop in usage. That is exactly what should happen when the portal rolls
+over to a new day (flush to 0, or near it), so **this integration does
+not withhold, rewrite, or otherwise filter any of these six values** —
+whatever the portal reports is what gets published, every poll.
 
-Every poll, each of the six counters is checked for a decrease before
-being published. A decrease is never trusted on its own — it is held back
-(the sensor keeps reporting its last known value) until corroborated using
-the portal's own current-day interval data
-(`getSystemPowerOnCurrentDayBatch`): a day that has genuinely just started
-has few or no 5-minute-interval data points yet, while a day that is well
-underway (the expected state during a transient glitch) has many. This
-check is keyed off the portal's own self-reported `lastReportTime` date,
-not Home Assistant's local date, so it stays correct regardless of any
-timezone offset between the portal and this HA instance. A confirmed
-rollover switches every counter straight to its fresh post-reset value in
-one step — the Energy dashboard never sees an in-between state that mixes
-leftover energy from the previous day with the new day's count. If a drop
-can never be corroborated (e.g. a persistent connectivity issue), it is
-force-accepted as genuine after 15 minutes so a sensor can't get stuck
-forever on a stale value.
+What this integration does add is diagnostic logging. The portal's own
+day boundary is not guaranteed to land on Home Assistant's local midnight
+(e.g. the portal may roll over on a UTC day boundary while HA runs in
+CET), and it has occasionally been observed to report a transient,
+implausibly low value for one of these counters on a single poll before
+resuming at its previous level on the very next poll. Both cases look the
+same at a glance — a counter going down — so whenever a decrease is
+detected, a `WARNING` is logged with enough context to tell them apart:
+the live power readings for that poll (grid/load/PV/battery power,
+battery state of charge), the previous and new value of all six
+counters, and the portal's own self-reported `lastReportTime` (used, not
+Home Assistant's local date, so detection stays correct regardless of any
+timezone offset between the portal and this HA instance). On a
+best-effort basis the log is also annotated with how many 5-minute
+interval data points the portal's current-day series has so far via
+`getSystemPowerOnCurrentDayBatch` — a day that has genuinely just started
+has few or none, while a day that is already well underway (the expected
+state during a transient glitch) has many — purely as a clue for
+whoever reads the log, never used to alter what gets published.
+
+A decrease that flushes to (near) zero is logged as consistent with a
+genuine rollover; a decrease that doesn't is logged more loudly as a
+possible data inconsistency worth investigating. Check the logs
+(`custom_components.apsystems_cloud_crawler.daily_energy_monitor`) if the
+Energy dashboard ever looks skewed around day boundaries.
 
 ### Sensors — lifetime / slow-poll (default ~5 min poll)
 

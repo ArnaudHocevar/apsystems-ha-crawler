@@ -15,7 +15,7 @@ from .api import (
     ApsystemsCloudCrawlerConnectionError,
 )
 from .const import CONF_ENABLE_GENERATOR_SENSORS, DAILY_ENERGY_SENSORS, DOMAIN, SLOW_POLL_INTERVAL
-from .daily_energy_guard import DailyEnergyRolloverGuard
+from .daily_energy_monitor import DailyEnergyRolloverMonitor
 from .models import CloudCrawlerData, build_cloud_crawler_data
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class ApsystemsCloudCrawlerCoordinator(DataUpdateCoordinator[CloudCrawlerData]):
         self._generator_realtime_raw: dict | None = None
         self._last_generator_poll: datetime | None = None
 
-        self._daily_energy_guard = DailyEnergyRolloverGuard()
+        self._daily_energy_guard = DailyEnergyRolloverMonitor()
 
     async def _async_fetch_live(self) -> tuple[dict, dict, dict]:
         control_info_raw = await self.client.async_get_control_info()
@@ -93,26 +93,33 @@ class ApsystemsCloudCrawlerCoordinator(DataUpdateCoordinator[CloudCrawlerData]):
         )
         self._last_generator_poll = now
 
-    async def _async_filter_daily_energy(
+    async def _async_observe_daily_energy(
         self, data: CloudCrawlerData, control_info_raw: dict
     ) -> None:
-        """Filter the six daily energy counters through the rollover guard.
+        """Feed the six daily energy counters through the diagnostic monitor.
 
-        Mutates ``data`` in place, replacing each DE0-DE5-derived attribute
-        with the guard's verdict - see daily_energy_guard.py for why a raw
-        decrease from the portal cannot be trusted as-is.
+        Never alters ``data`` - see daily_energy_monitor.py for why a
+        decrease doesn't need to be withheld, only logged with context when
+        it looks worth investigating.
         """
         raw_values = {
             de_key: getattr(data, meta["key"]) for de_key, meta in DAILY_ENERGY_SENSORS.items()
         }
-        filtered = await self._daily_energy_guard.async_filter(
+        live_context = {
+            "grid_power": data.grid_power,
+            "load_power": data.load_power,
+            "pv_power": data.pv_power,
+            "storage_bat_power": data.storage_bat_power,
+            "storage_soc": data.storage_soc,
+            "daily_counters": raw_values,
+        }
+        await self._daily_energy_guard.async_observe(
             self.client,
             raw_values,
             control_info_raw.get("lastReportTime"),
+            live_context,
             datetime.now(UTC),
         )
-        for de_key, meta in DAILY_ENERGY_SENSORS.items():
-            setattr(data, meta["key"], filtered.get(de_key))
 
     async def _async_update_data(self) -> CloudCrawlerData:
         try:
@@ -166,7 +173,7 @@ class ApsystemsCloudCrawlerCoordinator(DataUpdateCoordinator[CloudCrawlerData]):
                 self._generator_data_raw,
                 self._generator_realtime_raw,
             )
-            await self._async_filter_daily_energy(data, control_info_raw)
+            await self._async_observe_daily_energy(data, control_info_raw)
             return data
         except ApsystemsCloudCrawlerAuthError as err:
             self._logged_in = False
