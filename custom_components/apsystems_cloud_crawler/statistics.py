@@ -8,7 +8,7 @@ Design notes (read before touching this file):
   dashboard preferences/config entries.
 * The external statistics written here are a *separate*, clearly
   integration-owned backing store (statistic_id
-  ``apsystems_ema:entry_<sanitized_entry_id>_<de_key>``) used only to
+  ``apsystems_cloud_crawler:entry_<sanitized_entry_id>_<de_key>``) used only to
   backfill historical hourly-resolution data (HA's external statistics API
   only accepts hour-aligned timestamps; see ``_build_day_statistics``)
   after a fresh install or HA downtime. They are
@@ -31,7 +31,7 @@ Design notes (read before touching this file):
   format, rather than relying on it happening to already be lowercase.
 * ``async_backfill_statistics`` (automatic, runs on every config entry
   setup) and ``async_backfill_date_range`` (manual, triggered by the
-  ``apsystems_ema.backfill`` service for a user-chosen date range) share the
+  ``apsystems_cloud_crawler.backfill`` service for a user-chosen date range) share the
   same per-day core, ``_async_backfill_dates``, which fetches
   getSystemPowerOnCurrentDayBatch exactly ONCE per day (its response
   already contains the per-interval series for all six counters) and
@@ -58,7 +58,7 @@ from homeassistant.components.recorder.statistics import (
 )
 from homeassistant.core import HomeAssistant
 
-from .api import ApsystemsEmaClient
+from .api import ApsystemsCloudCrawlerClient
 from .const import (
     BACKFILL_MAX_DAYS,
     DAILY_ENERGY_BATCH_FIELDS,
@@ -243,7 +243,7 @@ async def _async_backfill_dates(
     hass: HomeAssistant,
     entry_id: str,
     title: str,
-    client: ApsystemsEmaClient,
+    client: ApsystemsCloudCrawlerClient,
     start_date: date,
     end_date: date,
     last_known_by_key: dict[str, tuple[datetime, float] | None],
@@ -263,7 +263,7 @@ async def _async_backfill_dates(
     rest of the range. Returns ``{de_key: days_written}``.
 
     ``force`` (only ever passed ``True`` from the manual
-    ``apsystems_ema.backfill`` service, never from the automatic startup
+    ``apsystems_cloud_crawler.backfill`` service, never from the automatic startup
     path) disables the normal "skip hours already covered by the last known
     statistic point" behaviour on a per-key basis, for any key whose last
     known point is NOT strictly before ``start_date``. Without this, two
@@ -346,7 +346,7 @@ async def _async_backfill_dates(
 
 
 async def async_backfill_statistics(
-    hass: HomeAssistant, entry_id: str, title: str, client: ApsystemsEmaClient
+    hass: HomeAssistant, entry_id: str, title: str, client: ApsystemsCloudCrawlerClient
 ) -> None:
     """Backfill external statistics for the six daily energy counters.
 
@@ -355,7 +355,7 @@ async def async_backfill_statistics(
     stopping early for any day already covered by existing statistics. Runs
     automatically on every config entry setup; see
     ``async_backfill_date_range`` for the user-invokable equivalent over an
-    arbitrary date range (the ``apsystems_ema.backfill`` service).
+    arbitrary date range (the ``apsystems_cloud_crawler.backfill`` service).
     """
     today = datetime.now(UTC).date()
     last_known_by_key: dict[str, tuple[datetime, float] | None] = {}
@@ -386,7 +386,7 @@ async def async_backfill_date_range(
     hass: HomeAssistant,
     entry_id: str,
     title: str,
-    client: ApsystemsEmaClient,
+    client: ApsystemsCloudCrawlerClient,
     start_date: date,
     end_date: date,
     *,
@@ -395,7 +395,7 @@ async def async_backfill_date_range(
 ) -> dict[str, int]:
     """Backfill external statistics for all six daily energy counters over a user-chosen range.
 
-    This is the implementation behind the ``apsystems_ema.backfill`` service,
+    This is the implementation behind the ``apsystems_cloud_crawler.backfill`` service,
     for manually filling history (e.g. right after first install, to cover
     time before the integration was ever running, or any time a gap is
     suspected) without waiting for the automatic startup gap-fill or

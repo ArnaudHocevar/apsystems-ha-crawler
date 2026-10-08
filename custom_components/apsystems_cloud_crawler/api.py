@@ -40,15 +40,15 @@ BROWSER_USER_AGENT = (
 )
 
 
-class ApsystemsEmaError(Exception):
-    """Base error for the APsystems EMA client."""
+class ApsystemsCloudCrawlerError(Exception):
+    """Base error for the APSystems Cloud Crawler client."""
 
 
-class ApsystemsEmaAuthError(ApsystemsEmaError):
+class ApsystemsCloudCrawlerAuthError(ApsystemsCloudCrawlerError):
     """Raised when login fails because of invalid credentials."""
 
 
-class ApsystemsEmaConnectionError(ApsystemsEmaError):
+class ApsystemsCloudCrawlerConnectionError(ApsystemsCloudCrawlerError):
     """Raised when the EMA portal cannot be reached."""
 
 
@@ -75,7 +75,7 @@ def _extract_reissued_jsessionid(set_cookie_headers: list[str]) -> str | None:
     return real_values[-1] if real_values else None
 
 
-class ApsystemsEmaClient:
+class ApsystemsCloudCrawlerClient:
     """Thin async client handling login + the three polled endpoints."""
 
     def __init__(
@@ -135,7 +135,9 @@ class ApsystemsEmaClient:
                 set_cookie_headers = resp.headers.getall("Set-Cookie", [])
                 response_url = resp.url
         except aiohttp.ClientError as err:
-            raise ApsystemsEmaConnectionError(f"Could not reach EMA index page: {err}") from err
+            raise ApsystemsCloudCrawlerConnectionError(
+                f"Could not reach EMA index page: {err}"
+            ) from err
 
         # Workaround for an aiohttp CookieJar quirk: the server emits JSESSIONID
         # three times in one response (a fresh value, then
@@ -178,20 +180,22 @@ class ApsystemsEmaClient:
                 final_url = str(resp.url)
                 text = await resp.text()
         except aiohttp.ClientError as err:
-            raise ApsystemsEmaConnectionError(f"Could not reach EMA login endpoint: {err}") from err
+            raise ApsystemsCloudCrawlerConnectionError(
+                f"Could not reach EMA login endpoint: {err}"
+            ) from err
 
         if "exceptionindex" in final_url.lower() or "exception" in final_url.lower():
-            raise ApsystemsEmaAuthError(
+            raise ApsystemsCloudCrawlerAuthError(
                 _extract_error_text(text) or "Login failed (redirected to exception page)"
             )
         if "intohemsdashboard" not in final_url.lower():
-            raise ApsystemsEmaAuthError(
+            raise ApsystemsCloudCrawlerAuthError(
                 _extract_error_text(text)
                 or f"Login failed: unexpected redirect to {final_url}"
             )
 
         self._logged_in = True
-        _LOGGER.debug("APsystems EMA login succeeded")
+        _LOGGER.debug("APSystems Cloud Crawler login succeeded")
 
     async def _post_ajax(self, url: str, data: dict[str, str] | None = None) -> str:
         """POST to an authenticated ajax endpoint, re-logging in once if the session expired."""
@@ -202,16 +206,16 @@ class ApsystemsEmaClient:
                 ) as resp:
                     text = await resp.text()
             except aiohttp.ClientError as err:
-                raise ApsystemsEmaConnectionError(f"Could not reach {url}: {err}") from err
+                raise ApsystemsCloudCrawlerConnectionError(f"Could not reach {url}: {err}") from err
 
             if _looks_like_login_page(text) or not self._logged_in:
                 if attempt == 0:
                     _LOGGER.debug("Session expired or not authenticated, re-logging in")
                     await self.async_login()
                     continue
-                raise ApsystemsEmaAuthError("Session expired and re-login failed")
+                raise ApsystemsCloudCrawlerAuthError("Session expired and re-login failed")
             return text
-        raise ApsystemsEmaAuthError("Session expired and re-login failed")
+        raise ApsystemsCloudCrawlerAuthError("Session expired and re-login failed")
 
     async def async_get_control_info(self) -> dict[str, Any]:
         """Fetch the live instantaneous dashboard values (endpoint #1)."""
@@ -285,7 +289,7 @@ class ApsystemsEmaClient:
         )
         try:
             return _parse_json(text, self._endpoint_power_on_current_day_batch)
-        except ApsystemsEmaError:
+        except ApsystemsCloudCrawlerError:
             _LOGGER.debug("No usable data for day %s (likely outside retention)", day)
             return None
 
@@ -294,7 +298,9 @@ def _parse_json(text: str, source: str) -> dict[str, Any]:
     try:
         return json.loads(text)
     except (json.JSONDecodeError, TypeError) as err:
-        raise ApsystemsEmaError(f"Unexpected non-JSON response from {source}: {err}") from err
+        raise ApsystemsCloudCrawlerError(
+            f"Unexpected non-JSON response from {source}: {err}"
+        ) from err
 
 
 def _extract_error_text(html: str) -> str | None:

@@ -1,10 +1,10 @@
-"""Unit tests for parsing the example JSON payloads into EmaData."""
+"""Unit tests for parsing the example JSON payloads into CloudCrawlerData."""
 from __future__ import annotations
 
 import json
 
-from custom_components.apsystems_ema.models import (
-    build_ema_data,
+from custom_components.apsystems_cloud_crawler.models import (
+    build_cloud_crawler_data,
     parse_control_info,
     parse_dashboard_summary,
     parse_generator,
@@ -235,8 +235,8 @@ def test_parse_generator_all_zero_when_no_generator_attached():
     assert parsed["raw_generator_realtime"] == GENERATOR_REALTIME_EXAMPLE
 
 
-def test_build_ema_data_combines_all_sources():
-    data = build_ema_data(
+def test_build_cloud_crawler_data_combines_all_sources():
+    data = build_cloud_crawler_data(
         CONTROL_INFO_EXAMPLE,
         STORAGE_SUMMARY_EXAMPLE,
         DASHBOARD_SUMMARY_EXAMPLE,
@@ -255,8 +255,8 @@ def test_build_ema_data_combines_all_sources():
     assert data.raw_control_info == CONTROL_INFO_EXAMPLE
 
 
-def test_build_ema_data_without_optional_sources():
-    data = build_ema_data(CONTROL_INFO_EXAMPLE, STORAGE_SUMMARY_EXAMPLE)
+def test_build_cloud_crawler_data_without_optional_sources():
+    data = build_cloud_crawler_data(CONTROL_INFO_EXAMPLE, STORAGE_SUMMARY_EXAMPLE)
     assert data.grid_power == 0.0
     assert data.pv_lifetime_energy is None
     assert data.strategy_mode is None

@@ -8,7 +8,7 @@ from Crypto.PublicKey import RSA
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from custom_components.apsystems_ema import crypto
+from custom_components.apsystems_cloud_crawler import crypto
 
 
 def test_zero_pad_already_aligned():

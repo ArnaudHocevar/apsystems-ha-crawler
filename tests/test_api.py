@@ -1,5 +1,5 @@
 """Unit tests for api.py helpers that don't require network access."""
-from custom_components.apsystems_ema.api import (
+from custom_components.apsystems_cloud_crawler.api import (
     _extract_reissued_jsessionid,
     _looks_like_login_page,
 )

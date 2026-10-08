@@ -1,4 +1,4 @@
-# APsystems EMA for Home Assistant
+# APSystems Cloud Crawler for Home Assistant
 
 A [HACS](https://hacs.xyz/)-compatible custom integration that polls the
 [APsystems EMA portal](https://apsystemsema.com/ema) (the cloud dashboard for
@@ -42,19 +42,19 @@ browser/Selenium is used — it's plain async HTTP via `aiohttp`.
 
 1. In HACS, go to **Integrations → ⋮ → Custom repositories**.
 2. Add this repository's URL, category **Integration**.
-3. Search for "APsystems EMA" in HACS and install it.
+3. Search for "APSystems Cloud Crawler" in HACS and install it.
 4. Restart Home Assistant.
 
 ### Manual
 
-1. Copy the `custom_components/apsystems_ema` folder from this repository
+1. Copy the `custom_components/apsystems_cloud_crawler` folder from this repository
    into your Home Assistant `config/custom_components/` directory.
 2. Restart Home Assistant.
 
 ## Configuration
 
 Configuration is done entirely through the UI (**Settings → Devices &
-Services → Add Integration → APsystems EMA**) — there is no YAML
+Services → Add Integration → APSystems Cloud Crawler**) — there is no YAML
 configuration.
 
 * **Username** / **Password** — your EMA portal login credentials (the same
@@ -153,7 +153,7 @@ whichever ones you want yourself under **Settings → Dashboards → Energy**.
 
 In addition to the native daily-energy sensors above, this integration
 maintains a set of **external statistics** under statistic IDs like
-`apsystems_ema:entry_<sanitized_entry_id>_battery_discharge_today`. These
+`apsystems_cloud_crawler:entry_<sanitized_entry_id>_battery_discharge_today`. These
 are a separate, integration-owned backing store used to backfill hourly
 historical curves for the Energy dashboard from before the integration was
 running. The portal reports energy in 5-minute intervals, but Home
@@ -167,7 +167,7 @@ from the native sensor entities, or any other integration's statistics —
 add yourself.
 
 **Important — which one to add as your Energy dashboard source:** the
-native sensor and its corresponding `apsystems_ema:...` external statistic
+native sensor and its corresponding `apsystems_cloud_crawler:...` external statistic
 are two *separate* entries in the Energy dashboard's source picker (there
 is no way for Home Assistant to merge history into a sensor entity's own
 statistic from outside its own state updates — a custom integration simply
@@ -178,19 +178,19 @@ overlap):
 * **Add the native sensor** (e.g. "Solar Production Today") if you want
   live, continuously-accurate tracking from the moment you add it onward.
   It will *not* show any history from before it was added.
-* **Add the `apsystems_ema:...` external statistic instead** — in the
+* **Add the `apsystems_cloud_crawler:...` external statistic instead** — in the
   Energy dashboard's "Add source" picker it's listed with the same
   friendly name plus a `(History)` suffix, e.g. "My Station Solar
   Production Today (History)" — if you want the backfilled pre-existing
   history to actually appear on the dashboard. Its trade-off: it is only
   refreshed when the integration (re)loads (startup gap-fill, bounded to
-  the last 7 days) or when you call the `apsystems_ema.backfill` service
+  the last 7 days) or when you call the `apsystems_cloud_crawler.backfill` service
   manually — not on every live poll — so "today" may lag behind until the
   next restart/manual backfill.
 
 If you've already added the native sensor and only now realize you wanted
 history too: remove the sensor as the Energy source, add the
-`apsystems_ema:...` statistic instead, then call `apsystems_ema.backfill`
+`apsystems_cloud_crawler:...` statistic instead, then call `apsystems_cloud_crawler.backfill`
 (see below) for whatever date range you want filled in.
 
 On startup, the integration checks the last known timestamp for each of
@@ -202,20 +202,20 @@ for a given day (its retention window for historical data is not publicly
 documented), the backward backfill loop simply stops early rather than
 erroring.
 
-### Manual backfill service (`apsystems_ema.backfill`)
+### Manual backfill service (`apsystems_cloud_crawler.backfill`)
 
 The automatic startup gap-fill above is bounded to 7 days back and only
 runs when the integration (re)loads. If you want to backfill a specific
 date range on demand — for example, right after first installing the
 integration (to cover history from before it was ever running), or any
-time you suspect a gap — call the `apsystems_ema.backfill` service/action:
+time you suspect a gap — call the `apsystems_cloud_crawler.backfill` service/action:
 
-* **Developer Tools → Actions**: search for "APsystems EMA: Backfill
+* **Developer Tools → Actions**: search for "APSystems Cloud Crawler: Backfill
   energy history", pick the config entry (account/station), and choose a
   start date and (optionally) an end date (defaults to today).
 * **YAML example**:
   ```yaml
-  action: apsystems_ema.backfill
+  action: apsystems_cloud_crawler.backfill
   data:
     config_entry_id: <your config entry id>
     start_date: "2026-01-01"
@@ -224,7 +224,7 @@ time you suspect a gap — call the `apsystems_ema.backfill` service/action:
 
 Notes:
 * The service writes to the exact same namespaced external-statistic IDs
-  (`apsystems_ema:<entry_id>_<key>`) as the automatic backfill — it never
+  (`apsystems_cloud_crawler:<entry_id>_<key>`) as the automatic backfill — it never
   touches the native sensors' own statistics or any other integration's
   data.
 * It fetches one day's data at a time (shared across all six counters, not
@@ -249,7 +249,7 @@ Notes:
   at the edge of the overwritten range; the hourly energy values
   themselves (what the Energy dashboard's bars show) are unaffected.
   ```yaml
-  action: apsystems_ema.backfill
+  action: apsystems_cloud_crawler.backfill
   data:
     config_entry_id: <your config entry id>
     start_date: "2026-10-07"
@@ -278,7 +278,7 @@ Notes:
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements_test.txt
-pip install homeassistant  # custom_components/apsystems_ema/__init__.py imports real HA modules
+pip install homeassistant  # custom_components/apsystems_cloud_crawler/__init__.py imports real HA modules
 pytest tests/ -q
 ```
 

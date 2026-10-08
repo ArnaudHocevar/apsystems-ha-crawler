@@ -1,5 +1,5 @@
 """Unit tests for statistics.py: the shared range-backfill core used by both
-the automatic startup gap-fill and the apsystems_ema.backfill service.
+the automatic startup gap-fill and the apsystems_cloud_crawler.backfill service.
 
 These tests mock the recorder statistics functions and the API client's
 day-batch fetch, so no real network or Home Assistant recorder instance is
@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.components.recorder.statistics import valid_statistic_id
 
-from custom_components.apsystems_ema.const import DAILY_ENERGY_SENSORS
-from custom_components.apsystems_ema.statistics import (
+from custom_components.apsystems_cloud_crawler.const import DAILY_ENERGY_SENSORS
+from custom_components.apsystems_cloud_crawler.statistics import (
     _statistic_id,
     async_backfill_date_range,
 )
@@ -68,12 +68,12 @@ async def test_backfill_date_range_skips_missing_day_and_continues():
     ]
 
     with patch(
-        "custom_components.apsystems_ema.statistics.get_last_statistics",
+        "custom_components.apsystems_cloud_crawler.statistics.get_last_statistics",
         return_value={},
     ), patch(
-        "custom_components.apsystems_ema.statistics.async_add_external_statistics"
+        "custom_components.apsystems_cloud_crawler.statistics.async_add_external_statistics"
     ) as mock_add_stats, patch(
-        "custom_components.apsystems_ema.statistics.asyncio.sleep",
+        "custom_components.apsystems_cloud_crawler.statistics.asyncio.sleep",
         new_callable=AsyncMock,
     ) as mock_sleep:
         results = await async_backfill_date_range(
@@ -126,12 +126,12 @@ async def test_backfill_date_range_continues_cumulative_sum_from_last_known():
         return {}
 
     with patch(
-        "custom_components.apsystems_ema.statistics.get_last_statistics",
+        "custom_components.apsystems_cloud_crawler.statistics.get_last_statistics",
         side_effect=fake_get_last_statistics,
     ), patch(
-        "custom_components.apsystems_ema.statistics.async_add_external_statistics"
+        "custom_components.apsystems_cloud_crawler.statistics.async_add_external_statistics"
     ) as mock_add_stats, patch(
-        "custom_components.apsystems_ema.statistics.asyncio.sleep",
+        "custom_components.apsystems_cloud_crawler.statistics.asyncio.sleep",
         new_callable=AsyncMock,
     ):
         results = await async_backfill_date_range(
@@ -168,7 +168,7 @@ async def test_build_day_statistics_aggregates_five_minute_intervals_into_hours(
     """Multiple 5-minute-interval deltas within the same hour are summed
     into a single hourly StatisticData point (HA's external statistics API
     only accepts top-of-the-hour timestamps)."""
-    from custom_components.apsystems_ema.statistics import _build_day_statistics
+    from custom_components.apsystems_cloud_crawler.statistics import _build_day_statistics
 
     hour = datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
     times = [
@@ -203,12 +203,12 @@ async def test_backfill_date_range_all_days_missing_returns_zero_for_all_keys():
     client.async_get_power_on_current_day_batch.return_value = None
 
     with patch(
-        "custom_components.apsystems_ema.statistics.get_last_statistics",
+        "custom_components.apsystems_cloud_crawler.statistics.get_last_statistics",
         return_value={},
     ), patch(
-        "custom_components.apsystems_ema.statistics.async_add_external_statistics"
+        "custom_components.apsystems_cloud_crawler.statistics.async_add_external_statistics"
     ) as mock_add_stats, patch(
-        "custom_components.apsystems_ema.statistics.asyncio.sleep",
+        "custom_components.apsystems_cloud_crawler.statistics.asyncio.sleep",
         new_callable=AsyncMock,
     ):
         results = await async_backfill_date_range(
@@ -234,7 +234,7 @@ def test_metadata_sets_mean_type_and_unit_class_for_energy_sum_statistics():
     kWh."""
     from homeassistant.components.recorder.models import StatisticMeanType
 
-    from custom_components.apsystems_ema.statistics import _metadata
+    from custom_components.apsystems_cloud_crawler.statistics import _metadata
 
     for de_key in DAILY_ENERGY_SENSORS:
         meta = _metadata("entry123", "My Station", de_key)
@@ -304,13 +304,13 @@ async def test_todays_first_hour_does_not_inherit_previous_days_total():
         written.setdefault(metadata["statistic_id"], []).extend(points)
 
     with patch(
-        "custom_components.apsystems_ema.statistics.get_last_statistics",
+        "custom_components.apsystems_cloud_crawler.statistics.get_last_statistics",
         return_value={},
     ), patch(
-        "custom_components.apsystems_ema.statistics.async_add_external_statistics",
+        "custom_components.apsystems_cloud_crawler.statistics.async_add_external_statistics",
         side_effect=fake_add_external_statistics,
     ), patch(
-        "custom_components.apsystems_ema.statistics.asyncio.sleep",
+        "custom_components.apsystems_cloud_crawler.statistics.asyncio.sleep",
         new_callable=AsyncMock,
     ):
         await async_backfill_date_range(
@@ -339,7 +339,7 @@ async def test_build_day_statistics_drops_implausible_interval_delta():
     system's output (see MAX_PLAUSIBLE_INTERVAL_KWH) is dropped and logged
     rather than trusted, so a glitched/malformed portal response can't
     silently inject a huge spike into the Energy dashboard."""
-    from custom_components.apsystems_ema.statistics import _build_day_statistics
+    from custom_components.apsystems_cloud_crawler.statistics import _build_day_statistics
 
     hour = datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
     times = [int((hour + timedelta(minutes=5 * i)).timestamp() * 1000) for i in range(3)]
@@ -384,12 +384,12 @@ async def test_force_backfills_older_range_after_newer_data_already_written():
         return {stat_id: [{"end": recent_end.timestamp(), "sum": 50.0, "state": 1.0}]}
 
     with patch(
-        "custom_components.apsystems_ema.statistics.get_last_statistics",
+        "custom_components.apsystems_cloud_crawler.statistics.get_last_statistics",
         side_effect=fake_get_last_statistics,
     ), patch(
-        "custom_components.apsystems_ema.statistics.async_add_external_statistics"
+        "custom_components.apsystems_cloud_crawler.statistics.async_add_external_statistics"
     ) as mock_add_stats, patch(
-        "custom_components.apsystems_ema.statistics.asyncio.sleep",
+        "custom_components.apsystems_cloud_crawler.statistics.asyncio.sleep",
         new_callable=AsyncMock,
     ):
         # Without force: writes nothing (the bug).

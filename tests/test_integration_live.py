@@ -1,4 +1,4 @@
-"""Manual, real-site end-to-end validation for the APsystems EMA integration.
+"""Manual, real-site end-to-end validation for the APSystems Cloud Crawler integration.
 
 This test is NOT run as part of normal CI/test runs - it is marked
 ``@pytest.mark.integration`` and additionally skipped unless the
@@ -22,7 +22,7 @@ import os
 import aiohttp
 import pytest
 
-from custom_components.apsystems_ema.api import ApsystemsEmaClient
+from custom_components.apsystems_cloud_crawler.api import ApsystemsCloudCrawlerClient
 
 TEST_USERNAME = "Hocevar arnaud"
 TEST_PASSWORD = "f$SMS6QL*oYqrP"
@@ -41,7 +41,7 @@ requires_live_env = pytest.mark.skipif(
 @requires_live_env
 async def test_live_login_and_endpoints():
     async with aiohttp.ClientSession() as session:
-        client = ApsystemsEmaClient(session, TEST_USERNAME, TEST_PASSWORD)
+        client = ApsystemsCloudCrawlerClient(session, TEST_USERNAME, TEST_PASSWORD)
 
         await client.async_login()
 
