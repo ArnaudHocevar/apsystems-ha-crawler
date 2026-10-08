@@ -91,3 +91,36 @@ DAILY_ENERGY_BATCH_FIELDS: dict[str, dict[str, str]] = {
     "DE4": {"total": "exportedTotal", "series": "exportedEnergy"},
     "DE5": {"total": "importedTotal", "series": "importedEnergy"},
 }
+
+# --- Daily counter rollover diagnostics (see daily_energy_monitor.py) ---
+#
+# NOTE: values are never withheld/altered based on these - HA's own
+# `total_increasing` state class already does the right thing when a
+# daily-resetting counter decreases (it starts a fresh accumulation
+# baseline from the new, lower value), so a clean flush-to-(near)-zero at
+# day rollover needs no special handling here. These constants only tune
+# the diagnostic logging that helps tell a genuine rollover apart from an
+# unexpected/inconsistent decrease worth investigating.
+#
+# A day that has genuinely just rolled over has few (if any)
+# getSystemPowerOnCurrentDayBatch 5-minute-interval entries so far. 12
+# entries = 1 hour's worth; a decrease corroborated by a current-day
+# interval count at or below this is logged as "looks like a genuine
+# rollover", any other decrease is logged as "unexpected/worth checking".
+DAILY_ROLLOVER_MAX_CONFIRM_POINTS = 12
+
+# How long to wait before re-attempting the (best-effort, diagnostic-only)
+# portal corroboration call for a still-recurring decrease, so a
+# persistently misbehaving counter doesn't hammer the portal every ~60s
+# poll with an extra request.
+DAILY_ROLLOVER_RECHECK_INTERVAL = timedelta(minutes=5)
+
+# A decrease landing at or below this (kWh) looks like a clean flush to
+# (near) zero, i.e. consistent with a genuine day rollover. A decrease
+# landing above it (e.g. 23.5 -> 10) does not look like a rollover at all
+# and is logged more loudly as a possible data inconsistency.
+DAILY_ROLLOVER_NEAR_ZERO_KWH = 1.0
+
+# Tolerance (kWh) below which a counter is considered unchanged rather than
+# decreased, to absorb float round-tripping noise from the portal.
+DAILY_ROLLOVER_EPSILON_KWH = 0.0005
