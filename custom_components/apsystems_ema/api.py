@@ -17,18 +17,18 @@ import aiohttp
 import yarl
 
 from .const import (
-    BASE_URL,
-    DASHBOARD_URL,
-    ENDPOINT_CONTROL_INFO,
-    ENDPOINT_DASHBOARD_SUMMARY,
-    ENDPOINT_GENERATOR_DATA,
-    ENDPOINT_GENERATOR_REALTIME,
-    ENDPOINT_POWER_ON_CURRENT_DAY_BATCH,
-    ENDPOINT_STORAGE_SUMMARY,
-    ENDPOINT_STRATEGY_INFO,
-    ENDPOINT_SYSTEM_STRATEGY,
-    INDEX_URL,
-    LOGIN_URL,
+    DEFAULT_BASE_URL,
+    PATH_CONTROL_INFO,
+    PATH_DASHBOARD,
+    PATH_DASHBOARD_SUMMARY,
+    PATH_GENERATOR_DATA,
+    PATH_GENERATOR_REALTIME,
+    PATH_INDEX,
+    PATH_LOGIN,
+    PATH_POWER_ON_CURRENT_DAY_BATCH,
+    PATH_STORAGE_SUMMARY,
+    PATH_STRATEGY_INFO,
+    PATH_SYSTEM_STRATEGY,
 )
 from .crypto import build_login_payload
 
@@ -38,13 +38,6 @@ BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
-
-AJAX_HEADERS = {
-    "X-Requested-With": "XMLHttpRequest",
-    "Referer": DASHBOARD_URL,
-    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-    "User-Agent": BROWSER_USER_AGENT,
-}
 
 
 class ApsystemsEmaError(Exception):
@@ -85,18 +78,57 @@ def _extract_reissued_jsessionid(set_cookie_headers: list[str]) -> str | None:
 class ApsystemsEmaClient:
     """Thin async client handling login + the three polled endpoints."""
 
-    def __init__(self, session: aiohttp.ClientSession, username: str, password: str) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        username: str,
+        password: str,
+        base_url: str = DEFAULT_BASE_URL,
+    ) -> None:
         self._session = session
         self._username = username
         self._password = password
         self._logged_in = False
+
+        # Everything below is derived from base_url so this client can talk
+        # to any APsystems cloud deployment that mirrors the stock EMA
+        # dashboard API (e.g. a region-specific or white-labelled portal),
+        # not just the default apsystemsema.com host.
+        self._base_url = base_url.rstrip("/")
+        parsed_base = yarl.URL(self._base_url)
+        self._origin = f"{parsed_base.scheme}://{parsed_base.host}"
+        self._cookie_path = parsed_base.path or "/"
+
+        self._index_url = f"{self._base_url}/{PATH_INDEX}"
+        self._login_url = f"{self._base_url}/{PATH_LOGIN}"
+        self._dashboard_url = f"{self._base_url}/{PATH_DASHBOARD}"
+
+        self._endpoint_control_info = f"{self._base_url}/{PATH_CONTROL_INFO}"
+        self._endpoint_storage_summary = f"{self._base_url}/{PATH_STORAGE_SUMMARY}"
+        self._endpoint_power_on_current_day_batch = (
+            f"{self._base_url}/{PATH_POWER_ON_CURRENT_DAY_BATCH}"
+        )
+        self._endpoint_dashboard_summary = f"{self._base_url}/{PATH_DASHBOARD_SUMMARY}"
+        self._endpoint_strategy_info = f"{self._base_url}/{PATH_STRATEGY_INFO}"
+        self._endpoint_system_strategy = f"{self._base_url}/{PATH_SYSTEM_STRATEGY}"
+        self._endpoint_generator_data = f"{self._base_url}/{PATH_GENERATOR_DATA}"
+        self._endpoint_generator_realtime = (
+            f"{self._base_url}/{PATH_GENERATOR_REALTIME}"
+        )
+
+        self._ajax_headers = {
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": self._dashboard_url,
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "User-Agent": BROWSER_USER_AGENT,
+        }
 
     async def async_login(self) -> None:
         """Perform the full login handshake, raising on failure."""
         # Step 1: GET the index page with a browser UA to obtain a JSESSIONID.
         try:
             async with self._session.get(
-                INDEX_URL,
+                self._index_url,
                 headers={"User-Agent": BROWSER_USER_AGENT, "Accept": "text/html"},
             ) as resp:
                 await resp.read()
@@ -122,7 +154,7 @@ class ApsystemsEmaClient:
         if real_value:
             fixed = SimpleCookie()
             fixed["JSESSIONID"] = real_value
-            fixed["JSESSIONID"]["path"] = "/ema"
+            fixed["JSESSIONID"]["path"] = self._cookie_path
             self._session.cookie_jar.update_cookies(fixed, response_url)
 
         # The portal expects the current *local* wall-clock time; .astimezone()
@@ -133,12 +165,12 @@ class ApsystemsEmaClient:
 
         try:
             async with self._session.post(
-                LOGIN_URL,
+                self._login_url,
                 data=body.encode("ascii"),
                 headers={
                     "Content-Type": content_type,
-                    "Origin": "https://apsystemsema.com",
-                    "Referer": INDEX_URL,
+                    "Origin": self._origin,
+                    "Referer": self._index_url,
                     "User-Agent": BROWSER_USER_AGENT,
                 },
                 allow_redirects=True,
@@ -165,7 +197,9 @@ class ApsystemsEmaClient:
         """POST to an authenticated ajax endpoint, re-logging in once if the session expired."""
         for attempt in range(2):
             try:
-                async with self._session.post(url, data=data or {}, headers=AJAX_HEADERS) as resp:
+                async with self._session.post(
+                    url, data=data or {}, headers=self._ajax_headers
+                ) as resp:
                     text = await resp.text()
             except aiohttp.ClientError as err:
                 raise ApsystemsEmaConnectionError(f"Could not reach {url}: {err}") from err
@@ -181,19 +215,19 @@ class ApsystemsEmaClient:
 
     async def async_get_control_info(self) -> dict[str, Any]:
         """Fetch the live instantaneous dashboard values (endpoint #1)."""
-        text = await self._post_ajax(ENDPOINT_CONTROL_INFO)
-        return _parse_json(text, ENDPOINT_CONTROL_INFO)
+        text = await self._post_ajax(self._endpoint_control_info)
+        return _parse_json(text, self._endpoint_control_info)
 
     async def async_get_storage_summary(self) -> dict[str, Any]:
         """Fetch today's daily summary values (endpoint #2)."""
         text = await self._post_ajax(
-            ENDPOINT_STORAGE_SUMMARY, data={"isMultipleStorage": "true"}
+            self._endpoint_storage_summary, data={"isMultipleStorage": "true"}
         )
-        return _parse_json(text, ENDPOINT_STORAGE_SUMMARY)
+        return _parse_json(text, self._endpoint_storage_summary)
 
     def _get_user_id_cookie(self) -> str | None:
         """Return the ``userId`` cookie value set by the server at login, if any."""
-        for cookie in self._session.cookie_jar.filter_cookies(yarl.URL(BASE_URL)).values():
+        for cookie in self._session.cookie_jar.filter_cookies(yarl.URL(self._base_url)).values():
             if cookie.key == "userId":
                 return cookie.value
         return None
@@ -202,32 +236,32 @@ class ApsystemsEmaClient:
         """Fetch lifetime production/consumption + status values (summary endpoint)."""
         user_id = self._get_user_id_cookie()
         data = {"userId": user_id, "operateId": user_id} if user_id else {}
-        text = await self._post_ajax(ENDPOINT_DASHBOARD_SUMMARY, data=data)
-        return _parse_json(text, ENDPOINT_DASHBOARD_SUMMARY)
+        text = await self._post_ajax(self._endpoint_dashboard_summary, data=data)
+        return _parse_json(text, self._endpoint_dashboard_summary)
 
     async def async_get_strategy_info(self) -> dict[str, Any]:
         """Fetch battery/grid strategy capability+config info (slow-polled)."""
-        text = await self._post_ajax(ENDPOINT_STRATEGY_INFO)
-        return _parse_json(text, ENDPOINT_STRATEGY_INFO)
+        text = await self._post_ajax(self._endpoint_strategy_info)
+        return _parse_json(text, self._endpoint_strategy_info)
 
     async def async_get_system_strategy(self) -> dict[str, Any]:
         """Fetch the active battery/grid strategy config (slow-polled)."""
-        text = await self._post_ajax(ENDPOINT_SYSTEM_STRATEGY)
-        return _parse_json(text, ENDPOINT_SYSTEM_STRATEGY)
+        text = await self._post_ajax(self._endpoint_system_strategy)
+        return _parse_json(text, self._endpoint_system_strategy)
 
     async def async_get_generator_data(self, ecu_dev_id: str) -> dict[str, Any]:
         """Fetch generator work status for ``ecu_dev_id`` (the ABID device id)."""
         text = await self._post_ajax(
-            ENDPOINT_GENERATOR_DATA, data={"ecuDevId": ecu_dev_id}
+            self._endpoint_generator_data, data={"ecuDevId": ecu_dev_id}
         )
-        return _parse_json(text, ENDPOINT_GENERATOR_DATA)
+        return _parse_json(text, self._endpoint_generator_data)
 
     async def async_get_generator_realtime(self, ecu_dev_id: str) -> dict[str, Any]:
         """Fetch generator realtime telemetry for ``ecu_dev_id`` (the ABID device id)."""
         text = await self._post_ajax(
-            ENDPOINT_GENERATOR_REALTIME, data={"ecuDevId": ecu_dev_id}
+            self._endpoint_generator_realtime, data={"ecuDevId": ecu_dev_id}
         )
-        return _parse_json(text, ENDPOINT_GENERATOR_REALTIME)
+        return _parse_json(text, self._endpoint_generator_realtime)
 
     async def async_get_power_on_current_day_batch(self, day: str) -> dict[str, Any] | None:
         """Fetch the 5-minute resolution time series for ``day`` (format yyyyMMdd).
@@ -247,10 +281,10 @@ class ApsystemsEmaClient:
         which expect a running ``sum`` rather than a per-point delta.
         """
         text = await self._post_ajax(
-            ENDPOINT_POWER_ON_CURRENT_DAY_BATCH, data={"date": day}
+            self._endpoint_power_on_current_day_batch, data={"date": day}
         )
         try:
-            return _parse_json(text, ENDPOINT_POWER_ON_CURRENT_DAY_BATCH)
+            return _parse_json(text, self._endpoint_power_on_current_day_batch)
         except ApsystemsEmaError:
             _LOGGER.debug("No usable data for day %s (likely outside retention)", day)
             return None

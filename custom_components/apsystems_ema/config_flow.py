@@ -13,8 +13,10 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import ApsystemsEmaAuthError, ApsystemsEmaClient, ApsystemsEmaConnectionError
 from .const import (
+    CONF_BASE_URL,
     CONF_ENABLE_GENERATOR_SENSORS,
     CONF_SCAN_INTERVAL,
+    DEFAULT_BASE_URL,
     DEFAULT_ENABLE_GENERATOR_SENSORS,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -27,11 +29,14 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Optional(CONF_BASE_URL, default=DEFAULT_BASE_URL): str,
     }
 )
 
 
-async def _async_validate_login(hass: HomeAssistant, username: str, password: str) -> None:
+async def _async_validate_login(
+    hass: HomeAssistant, username: str, password: str, base_url: str
+) -> None:
     """Perform a real login to validate credentials, raising on failure.
 
     Uses a short-lived, dedicated aiohttp session (not the shared HA session)
@@ -40,7 +45,7 @@ async def _async_validate_login(hass: HomeAssistant, username: str, password: st
     """
     session = async_create_clientsession(hass)
     try:
-        client = ApsystemsEmaClient(session, username, password)
+        client = ApsystemsEmaClient(session, username, password, base_url=base_url)
         await client.async_login()
     finally:
         await session.close()
@@ -58,12 +63,13 @@ class ApsystemsEmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             username = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
+            base_url = user_input.get(CONF_BASE_URL) or DEFAULT_BASE_URL
 
             await self.async_set_unique_id(username)
             self._abort_if_unique_id_configured()
 
             try:
-                await _async_validate_login(self.hass, username, password)
+                await _async_validate_login(self.hass, username, password, base_url)
             except ApsystemsEmaAuthError:
                 errors["base"] = "invalid_auth"
             except ApsystemsEmaConnectionError:
@@ -72,7 +78,9 @@ class ApsystemsEmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected error validating APsystems EMA credentials")
                 errors["base"] = "unknown"
             else:
-                return self.async_create_entry(title=username, data=user_input)
+                return self.async_create_entry(
+                    title=username, data={**user_input, CONF_BASE_URL: base_url}
+                )
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors

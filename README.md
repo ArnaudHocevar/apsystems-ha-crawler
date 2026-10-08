@@ -61,6 +61,11 @@ configuration.
   ones you use at https://apsystemsema.com/ema). The integration performs a
   real login during setup to validate them; invalid credentials or
   connection problems are reported back as clear config-flow errors.
+* **APsystems cloud portal URL** (optional, advanced) — defaults to the
+  stock EMA portal (`https://apsystemsema.com/ema`). Override this only if
+  your account is served by a different APsystems cloud deployment (e.g. a
+  region-specific or white-labelled portal) that mirrors the same dashboard
+  API; most users should leave it at the default.
 
 Credentials are stored in the config entry (Home Assistant's standard
 encrypted storage), the same as any other cloud-polling integration.

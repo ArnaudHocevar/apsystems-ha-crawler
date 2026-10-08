@@ -16,7 +16,9 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import ApsystemsEmaAuthError, ApsystemsEmaClient, ApsystemsEmaConnectionError
 from .const import (
+    CONF_BASE_URL,
     CONF_SCAN_INTERVAL,
+    DEFAULT_BASE_URL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MANUAL_BACKFILL_MAX_DAYS,
@@ -52,6 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up APsystems EMA from a config entry."""
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
+    base_url = entry.data.get(CONF_BASE_URL, DEFAULT_BASE_URL)
 
     # Each config entry gets its own dedicated aiohttp session (still backed
     # by HA's aiohttp connector infrastructure via async_create_clientsession,
@@ -62,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # continuously log each other out. A dedicated session per entry avoids
     # that while still being a proper async aiohttp client.
     session = async_create_clientsession(hass)
-    client = ApsystemsEmaClient(session, username, password)
+    client = ApsystemsEmaClient(session, username, password, base_url=base_url)
 
     scan_interval = entry.options.get(
         CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
