@@ -1,4 +1,4 @@
-"""Sensor platform for the APsystems EMA integration."""
+"""Sensor platform for the APSystems Cloud Crawler integration."""
 from __future__ import annotations
 
 import logging
@@ -27,21 +27,21 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_ENABLE_GENERATOR_SENSORS, DAILY_ENERGY_SENSORS, DOMAIN, MANUFACTURER, MODEL
-from .coordinator import ApsystemsEmaCoordinator
-from .models import EmaData
+from .coordinator import ApsystemsCloudCrawlerCoordinator
+from .models import CloudCrawlerData
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, kw_only=True)
-class ApsystemsEmaSensorDescription(SensorEntityDescription):
-    """Describes an APsystems EMA sensor entity."""
+class ApsystemsCloudCrawlerSensorDescription(SensorEntityDescription):
+    """Describes an APSystems Cloud Crawler sensor entity."""
 
-    value_fn: Callable[[EmaData], object] = lambda data: None
-    extra_attrs_fn: Callable[[EmaData], dict] | None = None
+    value_fn: Callable[[CloudCrawlerData], object] = lambda data: None
+    extra_attrs_fn: Callable[[CloudCrawlerData], dict] | None = None
 
 
-def _storage_status_attrs(data: EmaData) -> dict:
+def _storage_status_attrs(data: CloudCrawlerData) -> dict:
     attrs: dict = {}
     if data.abd:
         # Only ever expose the first battery pack entry for now; multi-pack
@@ -50,8 +50,8 @@ def _storage_status_attrs(data: EmaData) -> dict:
     return attrs
 
 
-SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
-    ApsystemsEmaSensorDescription(
+SENSOR_DESCRIPTIONS: tuple[ApsystemsCloudCrawlerSensorDescription, ...] = (
+    ApsystemsCloudCrawlerSensorDescription(
         key="grid_power",
         translation_key="grid_power",
         name="Grid Power",
@@ -60,7 +60,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.grid_power,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="load_power",
         translation_key="load_power",
         name="Load Power",
@@ -69,7 +69,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.load_power,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="pv_power",
         translation_key="pv_power",
         name="Solar Power",
@@ -78,7 +78,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.pv_power,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="storage_bat_power",
         translation_key="storage_bat_power",
         name="Battery Power",
@@ -87,7 +87,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.storage_bat_power,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="storage_soc",
         translation_key="storage_soc",
         name="Battery State of Charge",
@@ -97,7 +97,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         value_fn=lambda data: data.storage_soc,
         extra_attrs_fn=_storage_status_attrs,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="storage_status",
         translation_key="storage_status",
         name="Battery Status Code",
@@ -109,7 +109,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.storage_status,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="storage_capacity",
         translation_key="storage_capacity",
         name="Battery Capacity",
@@ -118,7 +118,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.storage_capacity,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="last_report_time",
         translation_key="last_report_time",
         name="Last Report Time",
@@ -128,7 +128,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
     ),
     # Lifetime counters from getDashboardSummaryInfoAjax - genuine monotonic
     # server-side totals, complementary to the DE2/DE3 daily counters below.
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="pv_lifetime_energy",
         translation_key="pv_lifetime_energy",
         name="Solar Production Lifetime",
@@ -137,7 +137,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.pv_lifetime_energy,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="consume_lifetime_energy",
         translation_key="consume_lifetime_energy",
         name="Consumption Lifetime",
@@ -149,14 +149,14 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
     # Battery/grid strategy settings (slow-polled, see coordinator.py).
     # Field semantics are best-effort reverse-engineered guesses - see
     # models.parse_strategy for details and caveats.
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="strategy_mode",
         translation_key="strategy_mode",
         name="Battery Strategy Mode",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.strategy_mode,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="backup_reserve_soc",
         translation_key="backup_reserve_soc",
         name="Backup Reserve SOC",
@@ -164,7 +164,7 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.backup_reserve_soc,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="peak_shaving_threshold",
         translation_key="peak_shaving_threshold",
         name="Peak Shaving Threshold",
@@ -180,8 +180,8 @@ SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
 # reverse-engineered guesses, not confirmed APsystems documentation; fields
 # too ambiguous to expose as dedicated entities remain available via
 # raw_generator_realtime as an attribute on the status sensor.
-GENERATOR_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
-    ApsystemsEmaSensorDescription(
+GENERATOR_SENSOR_DESCRIPTIONS: tuple[ApsystemsCloudCrawlerSensorDescription, ...] = (
+    ApsystemsCloudCrawlerSensorDescription(
         key="generator_power",
         translation_key="generator_power",
         name="Generator Power",
@@ -190,7 +190,7 @@ GENERATOR_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.generator_power,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="generator_voltage",
         translation_key="generator_voltage",
         name="Generator Voltage",
@@ -199,7 +199,7 @@ GENERATOR_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.generator_voltage,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="generator_frequency",
         translation_key="generator_frequency",
         name="Generator Frequency",
@@ -208,7 +208,7 @@ GENERATOR_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.generator_frequency,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="generator_temperature",
         translation_key="generator_temperature",
         name="Generator Temperature",
@@ -217,7 +217,7 @@ GENERATOR_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.generator_temperature,
     ),
-    ApsystemsEmaSensorDescription(
+    ApsystemsCloudCrawlerSensorDescription(
         key="generator_status",
         translation_key="generator_status",
         name="Generator Status Code",
@@ -234,8 +234,8 @@ GENERATOR_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = (
 # themselves. See statistics.py for the separate, integration-owned
 # external-statistics backfill that complements (but never replaces or
 # overwrites) these entities' own sensor-backed statistics.
-DAILY_ENERGY_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = tuple(
-    ApsystemsEmaSensorDescription(
+DAILY_ENERGY_DESCRIPTIONS: tuple[ApsystemsCloudCrawlerSensorDescription, ...] = tuple(
+    ApsystemsCloudCrawlerSensorDescription(
         key=meta["key"],
         translation_key=meta["key"],
         name=meta["name"],
@@ -251,30 +251,32 @@ DAILY_ENERGY_DESCRIPTIONS: tuple[ApsystemsEmaSensorDescription, ...] = tuple(
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up APsystems EMA sensors from a config entry."""
-    coordinator: ApsystemsEmaCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    """Set up APSystems Cloud Crawler sensors from a config entry."""
+    coordinator: ApsystemsCloudCrawlerCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     descriptions = list(SENSOR_DESCRIPTIONS) + list(DAILY_ENERGY_DESCRIPTIONS)
     if entry.options.get(CONF_ENABLE_GENERATOR_SENSORS, False):
         descriptions.extend(GENERATOR_SENSOR_DESCRIPTIONS)
 
     entities = [
-        ApsystemsEmaSensor(coordinator, entry, description) for description in descriptions
+        ApsystemsCloudCrawlerSensor(coordinator, entry, description) for description in descriptions
     ]
     async_add_entities(entities)
 
 
-class ApsystemsEmaSensor(CoordinatorEntity[ApsystemsEmaCoordinator], SensorEntity):
-    """Representation of a single APsystems EMA sensor."""
+class ApsystemsCloudCrawlerSensor(
+    CoordinatorEntity[ApsystemsCloudCrawlerCoordinator], SensorEntity
+):
+    """Representation of a single APSystems Cloud Crawler sensor."""
 
-    entity_description: ApsystemsEmaSensorDescription
+    entity_description: ApsystemsCloudCrawlerSensorDescription
     _attr_has_entity_name = True
 
     def __init__(
         self,
-        coordinator: ApsystemsEmaCoordinator,
+        coordinator: ApsystemsCloudCrawlerCoordinator,
         entry: ConfigEntry,
-        description: ApsystemsEmaSensorDescription,
+        description: ApsystemsCloudCrawlerSensorDescription,
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description

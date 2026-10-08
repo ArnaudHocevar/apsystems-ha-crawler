@@ -1,4 +1,4 @@
-"""Config flow for the APsystems EMA integration."""
+"""Config flow for the APSystems Cloud Crawler integration."""
 from __future__ import annotations
 
 import logging
@@ -11,7 +11,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
-from .api import ApsystemsEmaAuthError, ApsystemsEmaClient, ApsystemsEmaConnectionError
+from .api import (
+    ApsystemsCloudCrawlerAuthError,
+    ApsystemsCloudCrawlerClient,
+    ApsystemsCloudCrawlerConnectionError,
+)
 from .const import (
     CONF_BASE_URL,
     CONF_ENABLE_GENERATOR_SENSORS,
@@ -45,14 +49,14 @@ async def _async_validate_login(
     """
     session = async_create_clientsession(hass)
     try:
-        client = ApsystemsEmaClient(session, username, password, base_url=base_url)
+        client = ApsystemsCloudCrawlerClient(session, username, password, base_url=base_url)
         await client.async_login()
     finally:
         await session.close()
 
 
-class ApsystemsEmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for APsystems EMA."""
+class ApsystemsCloudCrawlerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for APSystems Cloud Crawler."""
 
     VERSION = 1
 
@@ -70,12 +74,12 @@ class ApsystemsEmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 await _async_validate_login(self.hass, username, password, base_url)
-            except ApsystemsEmaAuthError:
+            except ApsystemsCloudCrawlerAuthError:
                 errors["base"] = "invalid_auth"
-            except ApsystemsEmaConnectionError:
+            except ApsystemsCloudCrawlerConnectionError:
                 errors["base"] = "cannot_connect"
             except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected error validating APsystems EMA credentials")
+                _LOGGER.exception("Unexpected error validating APSystems Cloud Crawler credentials")
                 errors["base"] = "unknown"
             else:
                 return self.async_create_entry(
@@ -89,11 +93,11 @@ class ApsystemsEmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> ApsystemsEmaOptionsFlow:
-        return ApsystemsEmaOptionsFlow(config_entry)
+    ) -> ApsystemsCloudCrawlerOptionsFlow:
+        return ApsystemsCloudCrawlerOptionsFlow(config_entry)
 
 
-class ApsystemsEmaOptionsFlow(config_entries.OptionsFlow):
+class ApsystemsCloudCrawlerOptionsFlow(config_entries.OptionsFlow):
     """Options flow allowing the user to tune the polling interval and toggle
     the (experimental, field-semantics-unconfirmed) generator sensors."""
 

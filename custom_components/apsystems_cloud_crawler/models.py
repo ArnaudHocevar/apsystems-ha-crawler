@@ -1,4 +1,4 @@
-"""Data models for parsed APsystems EMA coordinator data."""
+"""Data models for parsed APSystems Cloud Crawler coordinator data."""
 from __future__ import annotations
 
 import json
@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
-class EmaData:
+class CloudCrawlerData:
     """Parsed snapshot combining the control-info and storage-summary endpoints."""
 
     # From getControlInfoWithMenuStorageDataPart
@@ -89,7 +89,7 @@ def _to_int(value: Any) -> int | None:
 
 
 def parse_control_info(raw: dict[str, Any]) -> dict[str, Any]:
-    """Parse the getControlInfoWithMenuStorageDataPart payload into kwargs for EmaData."""
+    """Parse the getControlInfoWithMenuStorageDataPart payload into kwargs for CloudCrawlerData."""
     last_report_time = None
     raw_time = raw.get("lastReportTime")
     if raw_time:
@@ -143,7 +143,7 @@ def parse_control_info(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def parse_storage_summary(raw: dict[str, Any]) -> dict[str, Any]:
-    """Parse the getStorageSummaryProductionInfoAjax payload into kwargs for EmaData."""
+    """Parse the getStorageSummaryProductionInfoAjax payload into kwargs for CloudCrawlerData."""
     return {
         "battery_discharge_today": _to_float(raw.get("DE0")),
         "battery_charge_today": _to_float(raw.get("DE1")),
@@ -166,7 +166,7 @@ def _to_bool_flag(value: Any) -> bool | None:
 
 
 def parse_dashboard_summary(raw: dict[str, Any]) -> dict[str, Any]:
-    """Parse the getDashboardSummaryInfoAjax payload into kwargs for EmaData."""
+    """Parse the getDashboardSummaryInfoAjax payload into kwargs for CloudCrawlerData."""
     return {
         "pv_lifetime_energy": _to_float(raw.get("pvLifetimeEnergy")),
         "consume_lifetime_energy": _to_float(raw.get("consumeLifetimeEnergy")),
@@ -179,7 +179,7 @@ def parse_dashboard_summary(raw: dict[str, Any]) -> dict[str, Any]:
 def parse_strategy(
     strategy_info_raw: dict[str, Any], system_strategy_raw: dict[str, Any]
 ) -> dict[str, Any]:
-    """Parse the two strategy endpoints into kwargs for EmaData.
+    """Parse the two strategy endpoints into kwargs for CloudCrawlerData.
 
     NOTE: field semantics here are best-effort reverse-engineered guesses,
     not confirmed by official APsystems documentation:
@@ -223,14 +223,14 @@ def parse_strategy(
 def parse_generator(
     generator_data_raw: dict[str, Any], generator_realtime_raw: dict[str, Any]
 ) -> dict[str, Any]:
-    """Parse the generator endpoints into kwargs for EmaData.
+    """Parse the generator endpoints into kwargs for CloudCrawlerData.
 
     NOTE: field semantics here are best-effort reverse-engineered guesses,
     not confirmed by official APsystems documentation. On accounts without a
     physical generator attached, all fields read zero. Fields whose meaning
     is too ambiguous to expose as a dedicated entity (e.g. the `*R`-suffixed
     arrays, which look like [min, max] valid ranges rather than live
-    readings) are intentionally left out of EmaData and remain available via
+    readings) are intentionally left out of CloudCrawlerData and remain available via
     raw_generator_realtime for advanced/attribute use.
     """
     status = _to_int(
@@ -247,7 +247,7 @@ def parse_generator(
     }
 
 
-def build_ema_data(
+def build_cloud_crawler_data(
     control_info_raw: dict[str, Any],
     storage_summary_raw: dict[str, Any],
     dashboard_summary_raw: dict[str, Any] | None = None,
@@ -255,8 +255,8 @@ def build_ema_data(
     system_strategy_raw: dict[str, Any] | None = None,
     generator_data_raw: dict[str, Any] | None = None,
     generator_realtime_raw: dict[str, Any] | None = None,
-) -> EmaData:
-    """Combine all raw payloads into a single EmaData instance."""
+) -> CloudCrawlerData:
+    """Combine all raw payloads into a single CloudCrawlerData instance."""
     kwargs = parse_control_info(control_info_raw)
     kwargs.update(parse_storage_summary(storage_summary_raw))
     if dashboard_summary_raw is not None:
@@ -265,4 +265,4 @@ def build_ema_data(
         kwargs.update(parse_strategy(strategy_info_raw, system_strategy_raw))
     if generator_data_raw is not None and generator_realtime_raw is not None:
         kwargs.update(parse_generator(generator_data_raw, generator_realtime_raw))
-    return EmaData(**kwargs)
+    return CloudCrawlerData(**kwargs)

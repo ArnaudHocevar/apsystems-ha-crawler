@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for the APsystems EMA integration."""
+"""DataUpdateCoordinator for the APSystems Cloud Crawler integration."""
 from __future__ import annotations
 
 import logging
@@ -9,14 +9,18 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import ApsystemsEmaAuthError, ApsystemsEmaClient, ApsystemsEmaConnectionError
+from .api import (
+    ApsystemsCloudCrawlerAuthError,
+    ApsystemsCloudCrawlerClient,
+    ApsystemsCloudCrawlerConnectionError,
+)
 from .const import CONF_ENABLE_GENERATOR_SENSORS, DOMAIN, SLOW_POLL_INTERVAL
-from .models import EmaData, build_ema_data
+from .models import CloudCrawlerData, build_cloud_crawler_data
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ApsystemsEmaCoordinator(DataUpdateCoordinator[EmaData]):
+class ApsystemsCloudCrawlerCoordinator(DataUpdateCoordinator[CloudCrawlerData]):
     """Coordinates polling of the EMA portal's dashboard endpoints.
 
     The live control-info/storage-summary/dashboard-summary endpoints are
@@ -31,7 +35,7 @@ class ApsystemsEmaCoordinator(DataUpdateCoordinator[EmaData]):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        client: ApsystemsEmaClient,
+        client: ApsystemsCloudCrawlerClient,
         update_interval: timedelta,
     ) -> None:
         super().__init__(
@@ -86,7 +90,7 @@ class ApsystemsEmaCoordinator(DataUpdateCoordinator[EmaData]):
         )
         self._last_generator_poll = now
 
-    async def _async_update_data(self) -> EmaData:
+    async def _async_update_data(self) -> CloudCrawlerData:
         try:
             if not self._logged_in:
                 await self.client.async_login()
@@ -96,7 +100,7 @@ class ApsystemsEmaCoordinator(DataUpdateCoordinator[EmaData]):
                 control_info_raw, storage_summary_raw, dashboard_summary_raw = (
                     await self._async_fetch_live()
                 )
-            except ApsystemsEmaAuthError:
+            except ApsystemsCloudCrawlerAuthError:
                 # Session likely expired between polls even though client-level
                 # retry already attempts one re-login; try a full fresh cycle
                 # once more before giving up for this update.
@@ -122,14 +126,14 @@ class ApsystemsEmaCoordinator(DataUpdateCoordinator[EmaData]):
             try:
                 await self._async_maybe_fetch_strategy()
                 await self._async_maybe_fetch_generator(ecu_dev_id)
-            except ApsystemsEmaAuthError:
+            except ApsystemsCloudCrawlerAuthError:
                 # Non-fatal for this cycle: keep the live data we already have
                 # and simply retry strategy/generator polling next cycle.
                 _LOGGER.debug(
                     "Strategy/generator poll failed with an auth error, will retry next cycle"
                 )
 
-            return build_ema_data(
+            return build_cloud_crawler_data(
                 control_info_raw,
                 storage_summary_raw,
                 dashboard_summary_raw,
@@ -138,8 +142,8 @@ class ApsystemsEmaCoordinator(DataUpdateCoordinator[EmaData]):
                 self._generator_data_raw,
                 self._generator_realtime_raw,
             )
-        except ApsystemsEmaAuthError as err:
+        except ApsystemsCloudCrawlerAuthError as err:
             self._logged_in = False
             raise ConfigEntryAuthFailed(str(err)) from err
-        except ApsystemsEmaConnectionError as err:
+        except ApsystemsCloudCrawlerConnectionError as err:
             raise UpdateFailed(str(err)) from err

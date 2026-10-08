@@ -1,4 +1,4 @@
-"""The APsystems EMA integration."""
+"""The APSystems Cloud Crawler integration."""
 from __future__ import annotations
 
 import logging
@@ -14,7 +14,11 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
-from .api import ApsystemsEmaAuthError, ApsystemsEmaClient, ApsystemsEmaConnectionError
+from .api import (
+    ApsystemsCloudCrawlerAuthError,
+    ApsystemsCloudCrawlerClient,
+    ApsystemsCloudCrawlerConnectionError,
+)
 from .const import (
     CONF_BASE_URL,
     CONF_SCAN_INTERVAL,
@@ -25,7 +29,7 @@ from .const import (
     MANUAL_BACKFILL_PACE_SECONDS,
     MIN_SCAN_INTERVAL,
 )
-from .coordinator import ApsystemsEmaCoordinator
+from .coordinator import ApsystemsCloudCrawlerCoordinator
 from .statistics import async_backfill_date_range, async_backfill_statistics
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,7 +55,7 @@ BACKFILL_SERVICE_SCHEMA = vol.Schema(
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up APsystems EMA from a config entry."""
+    """Set up APSystems Cloud Crawler from a config entry."""
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
     base_url = entry.data.get(CONF_BASE_URL, DEFAULT_BASE_URL)
@@ -65,14 +69,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # continuously log each other out. A dedicated session per entry avoids
     # that while still being a proper async aiohttp client.
     session = async_create_clientsession(hass)
-    client = ApsystemsEmaClient(session, username, password, base_url=base_url)
+    client = ApsystemsCloudCrawlerClient(session, username, password, base_url=base_url)
 
     scan_interval = entry.options.get(
         CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
     scan_interval = max(scan_interval, MIN_SCAN_INTERVAL)
 
-    coordinator = ApsystemsEmaCoordinator(
+    coordinator = ApsystemsCloudCrawlerCoordinator(
         hass, entry, client, update_interval=timedelta(seconds=scan_interval)
     )
 
@@ -102,7 +106,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await async_backfill_statistics(hass, entry.entry_id, entry.title, client)
     except Exception:  # pylint: disable=broad-except
-        _LOGGER.exception("APsystems EMA statistics backfill failed, continuing without it")
+        _LOGGER.exception(
+            "APSystems Cloud Crawler statistics backfill failed, continuing without it"
+        )
 
     _async_register_backfill_service(hass)
 
@@ -110,18 +116,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 def _async_register_backfill_service(hass: HomeAssistant) -> None:
-    """Register the apsystems_ema.backfill service (once, shared across all config entries)."""
+    """Register the apsystems_cloud_crawler.backfill service (once, shared
+    across all config entries)."""
     if hass.services.has_service(DOMAIN, SERVICE_BACKFILL):
         return
 
     async def _async_handle_backfill(call: ServiceCall) -> None:
-        """Handle a user-invoked apsystems_ema.backfill service call."""
+        """Handle a user-invoked apsystems_cloud_crawler.backfill service call."""
         entry_id = call.data[ATTR_CONFIG_ENTRY_ID]
         entry = hass.config_entries.async_get_entry(entry_id)
         entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
         if entry is None or entry_data is None:
             raise HomeAssistantError(
-                f"Unknown or not-loaded APsystems EMA config entry: {entry_id}"
+                f"Unknown or not-loaded APSystems Cloud Crawler config entry: {entry_id}"
             )
 
         start_date = call.data[ATTR_START_DATE]
@@ -137,10 +144,10 @@ def _async_register_backfill_service(hass: HomeAssistant) -> None:
                 "call; split the request into smaller ranges."
             )
 
-        client: ApsystemsEmaClient = entry_data["client"]
+        client: ApsystemsCloudCrawlerClient = entry_data["client"]
         force = call.data.get(ATTR_FORCE, False)
         _LOGGER.info(
-            "Starting manual APsystems EMA backfill for %s: %s to %s (%d day(s))%s",
+            "Starting manual APSystems Cloud Crawler backfill for %s: %s to %s (%d day(s))%s",
             entry.title,
             start_date,
             end_date,
@@ -158,19 +165,19 @@ def _async_register_backfill_service(hass: HomeAssistant) -> None:
                 pace_seconds=MANUAL_BACKFILL_PACE_SECONDS,
                 force=force,
             )
-        except (ApsystemsEmaAuthError, ApsystemsEmaConnectionError) as err:
-            raise HomeAssistantError(f"APsystems EMA backfill failed: {err}") from err
+        except (ApsystemsCloudCrawlerAuthError, ApsystemsCloudCrawlerConnectionError) as err:
+            raise HomeAssistantError(f"APSystems Cloud Crawler backfill failed: {err}") from err
         _LOGGER.info(
-            "Manual APsystems EMA backfill for %s complete: %s", entry.title, results
+            "Manual APSystems Cloud Crawler backfill for %s complete: %s", entry.title, results
         )
         if not any(results.values()):
             _LOGGER.warning(
-                "Manual APsystems EMA backfill for %s wrote 0 days for every "
+                "Manual APSystems Cloud Crawler backfill for %s wrote 0 days for every "
                 "counter over %s to %s - this usually means the portal has "
                 "no data for that range (outside its retention window, or a "
                 "date before the EMA account/plant existed), not a failed "
                 "call. See earlier per-day warnings, if any, for details. "
-                "Also remember: this writes to a separate 'apsystems_ema:...' "
+                "Also remember: this writes to a separate 'apsystems_cloud_crawler:...' "
                 "statistic distinct from the native sensor entities - see "
                 "the README's Energy dashboard section for which one to add "
                 "as your Energy source to see this history.",

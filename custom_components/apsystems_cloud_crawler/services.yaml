@@ -11,11 +11,11 @@ backfill:
   fields:
     config_entry_id:
       name: Config entry
-      description: The APsystems EMA config entry (account/station) to backfill.
+      description: The APSystems Cloud Crawler config entry (account/station) to backfill.
       required: true
       selector:
         config_entry:
-          integration: apsystems_ema
+          integration: apsystems_cloud_crawler
     start_date:
       name: Start date
       description: First day (inclusive) to backfill.

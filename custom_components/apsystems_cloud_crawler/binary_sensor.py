@@ -1,4 +1,4 @@
-"""Binary sensor platform for the APsystems EMA integration.
+"""Binary sensor platform for the APSystems Cloud Crawler integration.
 
 Optional, low-priority entities derived from getDashboardSummaryInfoAjax.
 """
@@ -20,26 +20,26 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER, MODEL
-from .coordinator import ApsystemsEmaCoordinator
-from .models import EmaData
+from .coordinator import ApsystemsCloudCrawlerCoordinator
+from .models import CloudCrawlerData
 
 
 @dataclass(frozen=True, kw_only=True)
-class ApsystemsEmaBinarySensorDescription(BinarySensorEntityDescription):
-    """Describes an APsystems EMA binary sensor entity."""
+class ApsystemsCloudCrawlerBinarySensorDescription(BinarySensorEntityDescription):
+    """Describes an APSystems Cloud Crawler binary sensor entity."""
 
-    value_fn: Callable[[EmaData], bool | None] = lambda data: None
+    value_fn: Callable[[CloudCrawlerData], bool | None] = lambda data: None
 
 
-BINARY_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaBinarySensorDescription, ...] = (
-    ApsystemsEmaBinarySensorDescription(
+BINARY_SENSOR_DESCRIPTIONS: tuple[ApsystemsCloudCrawlerBinarySensorDescription, ...] = (
+    ApsystemsCloudCrawlerBinarySensorDescription(
         key="running_status",
         translation_key="running_status",
         name="System Running",
         device_class=BinarySensorDeviceClass.RUNNING,
         value_fn=lambda data: None if data.running_status is None else data.running_status == 1,
     ),
-    ApsystemsEmaBinarySensorDescription(
+    ApsystemsCloudCrawlerBinarySensorDescription(
         key="communication_status",
         translation_key="communication_status",
         name="System Communication OK",
@@ -50,14 +50,14 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaBinarySensorDescription, ...] = (
     ),
     # Best-effort guesses from getStrategyInfoWithMenu/getSystemStrategy, see
     # models.parse_strategy.
-    ApsystemsEmaBinarySensorDescription(
+    ApsystemsCloudCrawlerBinarySensorDescription(
         key="eps_enabled",
         translation_key="eps_enabled",
         name="EPS Enabled",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.eps_enabled,
     ),
-    ApsystemsEmaBinarySensorDescription(
+    ApsystemsCloudCrawlerBinarySensorDescription(
         key="zero_export_enabled",
         translation_key="zero_export_enabled",
         name="Zero Export Enabled",
@@ -70,25 +70,27 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[ApsystemsEmaBinarySensorDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up APsystems EMA binary sensors from a config entry."""
-    coordinator: ApsystemsEmaCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    """Set up APSystems Cloud Crawler binary sensors from a config entry."""
+    coordinator: ApsystemsCloudCrawlerCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     async_add_entities(
-        ApsystemsEmaBinarySensor(coordinator, entry, description)
+        ApsystemsCloudCrawlerBinarySensor(coordinator, entry, description)
         for description in BINARY_SENSOR_DESCRIPTIONS
     )
 
 
-class ApsystemsEmaBinarySensor(CoordinatorEntity[ApsystemsEmaCoordinator], BinarySensorEntity):
-    """Representation of a single APsystems EMA binary sensor."""
+class ApsystemsCloudCrawlerBinarySensor(
+    CoordinatorEntity[ApsystemsCloudCrawlerCoordinator], BinarySensorEntity
+):
+    """Representation of a single APSystems Cloud Crawler binary sensor."""
 
-    entity_description: ApsystemsEmaBinarySensorDescription
+    entity_description: ApsystemsCloudCrawlerBinarySensorDescription
     _attr_has_entity_name = True
 
     def __init__(
         self,
-        coordinator: ApsystemsEmaCoordinator,
+        coordinator: ApsystemsCloudCrawlerCoordinator,
         entry: ConfigEntry,
-        description: ApsystemsEmaBinarySensorDescription,
+        description: ApsystemsCloudCrawlerBinarySensorDescription,
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description

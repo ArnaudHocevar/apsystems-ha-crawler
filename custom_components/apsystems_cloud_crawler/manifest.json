@@ -1,6 +1,6 @@
 {
-  "domain": "apsystems_ema",
-  "name": "APsystems EMA",
+  "domain": "apsystems_cloud_crawler",
+  "name": "APSystems Cloud Crawler",
   "codeowners": ["@arnaudhocevar"],
   "config_flow": true,
   "dependencies": ["recorder"],

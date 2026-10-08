@@ -1,9 +1,9 @@
-"""Constants for the APsystems EMA integration."""
+"""Constants for the APSystems Cloud Crawler integration."""
 from __future__ import annotations
 
 from datetime import timedelta
 
-DOMAIN = "apsystems_ema"
+DOMAIN = "apsystems_cloud_crawler"
 
 CONF_BASE_URL = "base_url"
 # The stock EMA portal. Not a hard requirement - other APsystems cloud
@@ -12,7 +12,7 @@ CONF_BASE_URL = "base_url"
 DEFAULT_BASE_URL = "https://apsystemsema.com/ema"
 
 # Paths below are relative to whatever base URL is configured (see
-# CONF_BASE_URL / DEFAULT_BASE_URL); ApsystemsEmaClient joins them per
+# CONF_BASE_URL / DEFAULT_BASE_URL); ApsystemsCloudCrawlerClient joins them per
 # instance rather than hard-coding a single portal host.
 PATH_INDEX = "index.action"
 PATH_LOGIN = "loginEMA.action"
@@ -48,7 +48,7 @@ DEFAULT_UPDATE_INTERVAL = timedelta(seconds=DEFAULT_SCAN_INTERVAL)
 # backfill loop stops as soon as a day returns no usable data.
 BACKFILL_MAX_DAYS = 7
 
-# Manual backfill service (apsystems_ema.backfill): a hard safety cap on how
+# Manual backfill service (apsystems_cloud_crawler.backfill): a hard safety cap on how
 # many days a single service call may request, to avoid an accidental
 # multi-year range hammering the portal. Per-day requests are additionally
 # paced (see MANUAL_BACKFILL_PACE_SECONDS) regardless of range length.
