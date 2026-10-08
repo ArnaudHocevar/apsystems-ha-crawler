@@ -116,9 +116,39 @@ used (not expected for typical residential installs).
 
 These are daily-resetting counters; Home Assistant's recorder/Energy
 dashboard natively understands `total_increasing` sensors that reset to 0
-at midnight, so no special handling is needed. **This integration never
+when the portal starts a new accumulation period. **This integration never
 adds these sensors to your Energy dashboard configuration for you** — add
 whichever ones you want yourself under **Settings → Dashboards → Energy**.
+
+#### Daily rollover guard
+
+The portal's own day boundary is not guaranteed to be at Home Assistant's
+local midnight (e.g. the portal may roll over on a UTC day boundary while
+HA runs in CET), and it has occasionally been observed to report a
+transient, implausibly low value for one of these counters on a single
+poll before resuming at its previous level on the very next poll — not a
+genuine reset, just a backend hiccup. Passing either of these straight
+through to a plain `total_increasing` sensor would corrupt the Energy
+dashboard: a spurious dip followed by recovery gets recorded by HA's
+recorder as "meter reset, then a full day's growth again", severely
+skewing (effectively doubling) that day's totals.
+
+Every poll, each of the six counters is checked for a decrease before
+being published. A decrease is never trusted on its own — it is held back
+(the sensor keeps reporting its last known value) until corroborated using
+the portal's own current-day interval data
+(`getSystemPowerOnCurrentDayBatch`): a day that has genuinely just started
+has few or no 5-minute-interval data points yet, while a day that is well
+underway (the expected state during a transient glitch) has many. This
+check is keyed off the portal's own self-reported `lastReportTime` date,
+not Home Assistant's local date, so it stays correct regardless of any
+timezone offset between the portal and this HA instance. A confirmed
+rollover switches every counter straight to its fresh post-reset value in
+one step — the Energy dashboard never sees an in-between state that mixes
+leftover energy from the previous day with the new day's count. If a drop
+can never be corroborated (e.g. a persistent connectivity issue), it is
+force-accepted as genuine after 15 minutes so a sensor can't get stuck
+forever on a stale value.
 
 ### Sensors — lifetime / slow-poll (default ~5 min poll)
 

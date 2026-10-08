@@ -91,3 +91,26 @@ DAILY_ENERGY_BATCH_FIELDS: dict[str, dict[str, str]] = {
     "DE4": {"total": "exportedTotal", "series": "exportedEnergy"},
     "DE5": {"total": "importedTotal", "series": "importedEnergy"},
 }
+
+# --- Daily counter rollover guard (see daily_energy_guard.py) ---
+#
+# A day that has genuinely just rolled over has few (if any)
+# getSystemPowerOnCurrentDayBatch 5-minute-interval entries so far. 12
+# entries = 1 hour's worth; any decrease in a DE0-DE5 counter corroborated
+# by a current-day interval count at or below this is treated as a
+# confirmed new accumulation period, not a transient glitch.
+DAILY_ROLLOVER_MAX_CONFIRM_POINTS = 12
+
+# How long to wait before re-attempting corroboration for a still-unresolved
+# drop (avoids hammering the portal every ~60s poll while a dip is pending).
+DAILY_ROLLOVER_RECHECK_INTERVAL = timedelta(minutes=5)
+
+# Fail-safe: if a drop can never be corroborated either way (e.g. the
+# portal keeps returning an unusable response for the guessed day), force-
+# accept it as genuine after this long so an affected sensor cannot be
+# stuck forever holding a stale pre-drop value.
+DAILY_ROLLOVER_FORCE_ACCEPT_AFTER = timedelta(minutes=15)
+
+# Tolerance (kWh) below which a counter is considered unchanged rather than
+# decreased, to absorb float round-tripping noise from the portal.
+DAILY_ROLLOVER_EPSILON_KWH = 0.0005

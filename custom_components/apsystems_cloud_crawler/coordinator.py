@@ -14,7 +14,8 @@ from .api import (
     ApsystemsCloudCrawlerClient,
     ApsystemsCloudCrawlerConnectionError,
 )
-from .const import CONF_ENABLE_GENERATOR_SENSORS, DOMAIN, SLOW_POLL_INTERVAL
+from .const import CONF_ENABLE_GENERATOR_SENSORS, DAILY_ENERGY_SENSORS, DOMAIN, SLOW_POLL_INTERVAL
+from .daily_energy_guard import DailyEnergyRolloverGuard
 from .models import CloudCrawlerData, build_cloud_crawler_data
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,6 +57,8 @@ class ApsystemsCloudCrawlerCoordinator(DataUpdateCoordinator[CloudCrawlerData]):
         self._generator_realtime_raw: dict | None = None
         self._last_generator_poll: datetime | None = None
 
+        self._daily_energy_guard = DailyEnergyRolloverGuard()
+
     async def _async_fetch_live(self) -> tuple[dict, dict, dict]:
         control_info_raw = await self.client.async_get_control_info()
         storage_summary_raw = await self.client.async_get_storage_summary()
@@ -89,6 +92,27 @@ class ApsystemsCloudCrawlerCoordinator(DataUpdateCoordinator[CloudCrawlerData]):
             ecu_dev_id
         )
         self._last_generator_poll = now
+
+    async def _async_filter_daily_energy(
+        self, data: CloudCrawlerData, control_info_raw: dict
+    ) -> None:
+        """Filter the six daily energy counters through the rollover guard.
+
+        Mutates ``data`` in place, replacing each DE0-DE5-derived attribute
+        with the guard's verdict - see daily_energy_guard.py for why a raw
+        decrease from the portal cannot be trusted as-is.
+        """
+        raw_values = {
+            de_key: getattr(data, meta["key"]) for de_key, meta in DAILY_ENERGY_SENSORS.items()
+        }
+        filtered = await self._daily_energy_guard.async_filter(
+            self.client,
+            raw_values,
+            control_info_raw.get("lastReportTime"),
+            datetime.now(UTC),
+        )
+        for de_key, meta in DAILY_ENERGY_SENSORS.items():
+            setattr(data, meta["key"], filtered.get(de_key))
 
     async def _async_update_data(self) -> CloudCrawlerData:
         try:
@@ -133,7 +157,7 @@ class ApsystemsCloudCrawlerCoordinator(DataUpdateCoordinator[CloudCrawlerData]):
                     "Strategy/generator poll failed with an auth error, will retry next cycle"
                 )
 
-            return build_cloud_crawler_data(
+            data = build_cloud_crawler_data(
                 control_info_raw,
                 storage_summary_raw,
                 dashboard_summary_raw,
@@ -142,6 +166,8 @@ class ApsystemsCloudCrawlerCoordinator(DataUpdateCoordinator[CloudCrawlerData]):
                 self._generator_data_raw,
                 self._generator_realtime_raw,
             )
+            await self._async_filter_daily_energy(data, control_info_raw)
+            return data
         except ApsystemsCloudCrawlerAuthError as err:
             self._logged_in = False
             raise ConfigEntryAuthFailed(str(err)) from err
