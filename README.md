@@ -146,7 +146,7 @@ CET), and it has occasionally been observed to report a transient,
 implausibly low value for one of these counters on a single poll before
 resuming at its previous level on the very next poll. Both cases look the
 same at a glance — a counter going down — so whenever a decrease is
-detected, a `WARNING` is logged with enough context to tell them apart:
+detected, a log entry is emitted with enough context to tell them apart:
 the live power readings for that poll (grid/load/PV/battery power,
 battery state of charge), the previous and new value of all six
 counters, and the portal's own self-reported `lastReportTime` (used, not
@@ -159,9 +159,26 @@ has few or none, while a day that is already well underway (the expected
 state during a transient glitch) has many — purely as a clue for
 whoever reads the log, never used to alter what gets published.
 
-A decrease that flushes to (near) zero is logged as consistent with a
-genuine rollover; a decrease that doesn't is logged more loudly as a
-possible data inconsistency worth investigating. Check the logs
+A decrease that flushes to (near) zero is the expected shape of a genuine
+rollover, so it's logged at `DEBUG` (not shown by default — this is the
+common case, e.g. when the portal's own rollover simply lands a few
+seconds/minutes off from HA's local midnight, and isn't by itself
+anything to act on). A decrease that doesn't flush to (near) zero is
+logged at `WARNING` instead, since that shape doesn't match a normal
+rollover and may indicate a genuine data inconsistency worth
+investigating.
+
+To see the `DEBUG` diagnostics too (e.g. while narrowing down a day-
+boundary issue), add to `configuration.yaml`:
+
+```yaml
+logger:
+  logs:
+    custom_components.apsystems_cloud_crawler.daily_energy_monitor: debug
+```
+
+or call the `logger.set_level` service with the same logger name/level
+for a one-off, no-restart-required change. Check the logs
 (`custom_components.apsystems_cloud_crawler.daily_energy_monitor`) if the
 Energy dashboard ever looks skewed around day boundaries.
 

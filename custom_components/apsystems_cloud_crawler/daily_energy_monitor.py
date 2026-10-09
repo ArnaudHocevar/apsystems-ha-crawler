@@ -120,7 +120,7 @@ class DailyEnergyRolloverMonitor:
         }
 
         if all_near_zero:
-            _LOGGER.warning(
+            _LOGGER.debug(
                 "Daily energy counter(s) %s flushed to (near) zero - looks "
                 "like a genuine portal day rollover (Home Assistant's "
                 "total_increasing handling will treat this as a new "
