@@ -84,14 +84,17 @@ async def test_decrease_to_near_zero_logged_as_likely_rollover(
     client = FakeClient(batch_by_day={"20261008": {"time": [1]}})
     now = datetime(2026, 10, 8, 0, 1, tzinfo=UTC)
     live_context = {"grid_power": 150, "pv_power": 0, "load_power": 150}
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.DEBUG):
         await monitor.async_observe(client, _all(23.5), "2026-10-07 23:59:00", {}, now)
         await monitor.async_observe(
             client, _all(0.1), "2026-10-08 00:01:00", live_context, now
         )
-    assert len(caplog.records) == 1
-    message = caplog.records[0].message
-    assert "genuine portal day rollover" in message
+    rollover_records = [
+        r for r in caplog.records if "genuine portal day rollover" in r.message
+    ]
+    assert len(rollover_records) == 1
+    assert rollover_records[0].levelno == logging.DEBUG
+    message = rollover_records[0].message
     assert "grid_power" in message or "live" in message
     assert client.calls == ["20261008"]
 
@@ -130,7 +133,7 @@ async def test_corroboration_is_rate_limited(caplog: pytest.LogCaptureFixture):
     monitor = DailyEnergyRolloverMonitor()
     client = FakeClient(batch_by_day={"20261007": {"time": [1, 2]}})
     now = datetime(2026, 10, 7, 14, 0, tzinfo=UTC)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.DEBUG):
         await monitor.async_observe(client, _all(23.5), "2026-10-07 13:59:00", {}, now)
         await monitor.async_observe(client, _all(0.0), "2026-10-07 14:00:00", {}, now)
         await monitor.async_observe(client, _all(23.5), "2026-10-07 14:01:00", {}, now)
@@ -138,8 +141,11 @@ async def test_corroboration_is_rate_limited(caplog: pytest.LogCaptureFixture):
             client, _all(0.0), "2026-10-07 14:02:00", {}, now + timedelta(minutes=1)
         )
     assert client.calls == ["20261007"]
-    assert len(caplog.records) == 2
-    assert "skipped (rechecked recently)" in caplog.records[1].message
+    rollover_records = [
+        r for r in caplog.records if "genuine portal day rollover" in r.message
+    ]
+    assert len(rollover_records) == 2
+    assert "skipped (rechecked recently)" in rollover_records[1].message
 
 
 @pytest.mark.asyncio
@@ -148,11 +154,14 @@ async def test_corroboration_failure_is_tolerated(caplog: pytest.LogCaptureFixtu
     monitor = DailyEnergyRolloverMonitor()
     client = FakeClient(error=ApsystemsCloudCrawlerConnectionError("boom"))
     now = datetime.now(UTC)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.DEBUG):
         await monitor.async_observe(client, _all(23.5), "2026-10-07 13:59:00", {}, now)
         await monitor.async_observe(client, _all(0.0), "2026-10-07 14:00:00", {}, now)
-    assert len(caplog.records) == 1
-    assert "unavailable (request failed)" in caplog.records[0].message
+    rollover_records = [
+        r for r in caplog.records if "genuine portal day rollover" in r.message
+    ]
+    assert len(rollover_records) == 1
+    assert "unavailable (request failed)" in rollover_records[0].message
 
 
 @pytest.mark.asyncio

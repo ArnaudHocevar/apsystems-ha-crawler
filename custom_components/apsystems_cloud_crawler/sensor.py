@@ -28,6 +28,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_ENABLE_GENERATOR_SENSORS, DAILY_ENERGY_SENSORS, DOMAIN, MANUFACTURER, MODEL
 from .coordinator import ApsystemsCloudCrawlerCoordinator
+from .lifetime_energy import create_lifetime_energy_sensors
 from .models import CloudCrawlerData
 
 _LOGGER = logging.getLogger(__name__)
@@ -261,6 +262,7 @@ async def async_setup_entry(
     entities = [
         ApsystemsCloudCrawlerSensor(coordinator, entry, description) for description in descriptions
     ]
+    entities.extend(create_lifetime_energy_sensors(coordinator, entry))
     async_add_entities(entities)
 
 

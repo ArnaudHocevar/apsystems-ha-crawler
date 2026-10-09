@@ -92,6 +92,45 @@ DAILY_ENERGY_BATCH_FIELDS: dict[str, dict[str, str]] = {
     "DE5": {"total": "importedTotal", "series": "importedEnergy"},
 }
 
+# Which of the six daily counters get a synthesized, never-resetting
+# "lifetime" companion sensor (see lifetime_energy.py). DE2 (solar
+# production) and DE3 (local consumption) are deliberately excluded here:
+# the portal already reports a genuine lifetime total for those two
+# directly (pvLifetimeEnergy/consumeLifetimeEnergy, exposed as
+# pv_lifetime_energy/consume_lifetime_energy on CloudCrawlerData), so
+# there is nothing to synthesize for them.
+LIFETIME_ENERGY_SENSORS: dict[str, dict[str, str]] = {
+    "DE0": {
+        "key": "battery_discharge_lifetime_energy",
+        "name": "Battery Discharge Lifetime",
+        "source": "battery_discharge_today",
+    },
+    "DE1": {
+        "key": "battery_charge_lifetime_energy",
+        "name": "Battery Charge Lifetime",
+        "source": "battery_charge_today",
+    },
+    "DE4": {
+        "key": "grid_export_lifetime_energy",
+        "name": "Grid Export Lifetime",
+        "source": "grid_export_today",
+    },
+    "DE5": {
+        "key": "grid_import_lifetime_energy",
+        "name": "Grid Import Lifetime",
+        "source": "grid_import_today",
+    },
+}
+
+# Fail-safe for the lifetime energy tracker: if a same-day decrease (one
+# that does NOT coincide with the portal's self-reported date advancing,
+# i.e. doesn't look like a genuine rollover) persists for this long, accept
+# the lower reading as the new baseline anyway so a sensor can't get stuck
+# forever withholding further accumulation over what was possibly just an
+# unusually long glitch. Worst case this discards a small, bounded amount
+# of real growth - it can never cause a double-count.
+LIFETIME_SUSPICIOUS_HOLD_TIMEOUT = timedelta(minutes=15)
+
 # --- Daily counter rollover diagnostics (see daily_energy_monitor.py) ---
 #
 # NOTE: values are never withheld/altered based on these - HA's own
