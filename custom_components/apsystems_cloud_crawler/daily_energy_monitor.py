@@ -42,32 +42,13 @@ from .const import (
     DAILY_ROLLOVER_NEAR_ZERO_KWH,
     DAILY_ROLLOVER_RECHECK_INTERVAL,
 )
+from .portal_day import day_string_from_report_time
 
 if TYPE_CHECKING:
     from .api import ApsystemsCloudCrawlerClient
 
 _LOGGER = logging.getLogger(__name__)
 
-
-def _day_string_from_report_time(raw_last_report_time: str | None) -> str | None:
-    """Extract a ``yyyyMMdd`` day string from the portal's own ``lastReportTime``.
-
-    ``raw_last_report_time`` is the raw ``"yyyy-MM-dd HH:mm:ss"`` string as
-    returned by the portal (see models.parse_control_info) - the date
-    portion is read directly from it rather than reinterpreted into any
-    particular timezone: whatever timezone the portal's clock actually
-    runs on, this is the portal's own opinion of "what day is it", which is
-    the label ``getSystemPowerOnCurrentDayBatch`` expects for "today".
-    Returns ``None`` if missing/unparseable.
-    """
-    if not raw_last_report_time or len(raw_last_report_time) < 10:
-        return None
-    date_part = raw_last_report_time[:10]
-    try:
-        datetime.strptime(date_part, "%Y-%m-%d")  # noqa: DTZ007
-    except ValueError:
-        return None
-    return date_part.replace("-", "")
 
 
 class DailyEnergyRolloverMonitor:
@@ -177,7 +158,7 @@ class DailyEnergyRolloverMonitor:
             return "skipped (rechecked recently)"
 
         self._last_confirm_attempt = now
-        day_str = _day_string_from_report_time(raw_last_report_time) or now.strftime(
+        day_str = day_string_from_report_time(raw_last_report_time) or now.strftime(
             "%Y%m%d"
         )
         try:

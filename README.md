@@ -120,6 +120,15 @@ when the portal starts a new accumulation period. **This integration never
 adds these sensors to your Energy dashboard configuration for you** — add
 whichever ones you want yourself under **Settings → Dashboards → Energy**.
 
+> **Prefer the "Lifetime" companion sensors below for your Energy
+> dashboard sources.** A sensor that never resets avoids a subtle failure
+> mode of these daily ones: if Home Assistant samples a counter right
+> before the portal's own day rollover lands, the Energy dashboard's
+> day-boundary value can be yesterday's stale peak instead of the new
+> day's near-zero baseline, skewing that day's figures. See "Daily
+> rollover diagnostics" below for the full explanation, and "Sensors —
+> lifetime" for what each counter's never-resetting equivalent is called.
+
 #### Daily rollover diagnostics
 
 Home Assistant's `total_increasing` state class is designed to handle a
@@ -158,13 +167,32 @@ Energy dashboard ever looks skewed around day boundaries.
 
 ### Sensors — lifetime / slow-poll (default ~5 min poll)
 
-| Entity | Unit | Device class / state class |
-|---|---|---|
-| Solar Production Lifetime | kWh | energy / total_increasing |
-| Consumption Lifetime | kWh | energy / total_increasing |
-| Battery Strategy Mode | — | diagnostic, raw code (unconfirmed meaning) |
-| Backup Reserve SOC | % | diagnostic |
-| Peak Shaving Threshold | W | diagnostic |
+| Entity | Unit | Device class / state class | Source |
+|---|---|---|---|
+| Solar Production Lifetime | kWh | energy / total_increasing | Native portal field (`pvLifetimeEnergy`) |
+| Consumption Lifetime | kWh | energy / total_increasing | Native portal field (`consumeLifetimeEnergy`) |
+| Battery Discharge Lifetime | kWh | energy / total_increasing | Synthesized (see below) |
+| Battery Charge Lifetime | kWh | energy / total_increasing | Synthesized (see below) |
+| Grid Export Lifetime | kWh | energy / total_increasing | Synthesized (see below) |
+| Grid Import Lifetime | kWh | energy / total_increasing | Synthesized (see below) |
+| Battery Strategy Mode | — | diagnostic, raw code (unconfirmed meaning) | |
+| Backup Reserve SOC | % | diagnostic | |
+| Peak Shaving Threshold | W | diagnostic | |
+
+The portal only reports a genuine, never-resetting lifetime total for
+solar production and consumption. For the other four daily counters
+(battery charge/discharge, grid import/export) this integration
+reconstructs an equivalent itself: each ~60s poll, it adds the counter's
+positive delta since the last poll onto a running total that is restored
+across Home Assistant restarts and never reset. A decrease is never
+simply subtracted — it is checked against the portal's own self-reported
+`lastReportTime` date (the same signal used by the diagnostics above): if
+that date advanced, the drop is treated as a genuine rollover and the new
+day's progress-so-far is folded in; if it didn't, the drop is held as a
+suspected glitch (so a same-poll recovery isn't double-counted) and only
+force-accepted as a new baseline if it persists for more than 15 minutes
+straight. This logic only ever adds to its own independent sensors — it
+never reads back or alters the daily counters above.
 
 ### Binary sensors
 
